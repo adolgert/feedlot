@@ -125,6 +125,7 @@ public:
     }
     double rate=S*s.params.at(SIRParam::Beta0);
     if (S>0 && I>0 && rate>0.0) {
+      BOOST_LOG_TRIVIAL(debug)<<"IP Enabled S "<<S<<" I "<<I<<" r "<<rate;
       return {true, std::unique_ptr<ExpDist>(new ExpDist(rate, te))};
     } else {
       //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"infection disable");
@@ -147,6 +148,7 @@ public:
       if (M>=move_it && len>0) {
         lm.template Move<0,0>(m, m+susceptible_cnt_, 1);
       }
+      M+=len;
     }
   }
 };
@@ -191,6 +193,7 @@ public:
       if (M>=move_it && len>0) {
         lm.template Move<0,0>(m, m+susceptible_cnt_, 1);
       }
+      M+=len;
     }
   }
 };
@@ -235,6 +238,7 @@ public:
       if (M>=move_it && len>0) {
         lm.template Move<0,0>(m, m+susceptible_cnt_, 1);
       }
+      M+=len;
     }
   }
 };
@@ -388,7 +392,7 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
         for (int64_t src_idx=0; src_idx<per_pen; ++src_idx) {
           int64_t src=src_base+src_idx;
           infect_vec[0]=Edge{{src, location, i}, -1};
-          bg.AddTransition({src, s_idx, infect0}, infect_vec,
+          bg.AddTransition({src, s_idx, infect1}, infect_vec,
             std::unique_ptr<SIRTransition>(new InfectFence(per_pen))
             );
         }
@@ -397,7 +401,7 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
         for (int64_t src_idx=0; src_idx<per_pen; ++src_idx) {
           int64_t src=src_base+src_idx;
           infect_vec[0]=Edge{{src, location, i}, -1};
-          bg.AddTransition({src, s_idx, infect0}, infect_vec,
+          bg.AddTransition({src, s_idx, infect2}, infect_vec,
             std::unique_ptr<SIRTransition>(new InfectOther(per_pen))
             );
         }
