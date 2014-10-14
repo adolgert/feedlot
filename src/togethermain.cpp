@@ -70,6 +70,9 @@ int main(int argc, char *argv[]) {
   int64_t infected_cnt=0;
   int64_t recovered_cnt=0;
 
+  int64_t block_cnt=2;
+  int64_t row_cnt=8;
+
   int run_cnt=1;
   size_t rand_seed=1;
   // Time is in years.
@@ -112,6 +115,12 @@ int main(int argc, char *argv[]) {
     ("recovered,r",
       po::value<int64_t>(&recovered_cnt),
       "number of recovered")
+    ("penblocks",
+      po::value<int64_t>(&block_cnt),
+      "number of city blocks of pens")
+    ("penrows,r",
+      po::value<int64_t>(&row_cnt),
+      "number of rows within a block of pens")
     ("seed",
       po::value<size_t>(&rand_seed)->default_value(rand_seed),
       "seed for random number generator")
@@ -208,7 +217,8 @@ int main(int argc, char *argv[]) {
       observer=std::make_shared<PercentTrajectorySave>();
     }
 
-    SEIR_run(end_time, seir_init, parameters, *observer, rng, 2, 4);
+    SEIR_run(end_time, seir_init, parameters, *observer, rng,
+        block_cnt, row_cnt);
     file.SaveTrajectory(parameters, single_seed, idx, observer->Trajectory());
   };
 
