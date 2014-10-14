@@ -104,21 +104,27 @@ using ExpDist=ExponentialDistribution<RandGen>;
 
 
 
-// Now make specific transitions.
+// For one infected to infect many susceptibles, the hazard
+// is just multiplied by the number of susceptibles, so we can
+// coalesce this transition. That means that, if it fires, it
+// picks, randomly, which susceptible will become latent.
 class InfectPen : public SIRTransition
 {
+  int64_t susceptible_cnt_;
+public:
+  InfectPen(int64_t susceptible_cnt) : susceptible_cnt_(susceptible_cnt) {}
+
   virtual std::pair<bool, std::unique_ptr<Dist>>
   Enabled(const UserState& s, const Local& lm,
     double te, double t0, RandGen& rng) override {
     // If these are just size_t, then the rate calculation overflows.
-    int64_t S=lm.template Length<0>(0);
-    int64_t I=lm.template Length<0>(1);
-    double rate=s.params.at(SIRParam::Beta0);
+    int64_t I=lm.template Length<0>(0);
+    int64_t S=0;
+    for (int64_t s=1; s<susceptible_cnt_+1; ++s) {
+      S+=lm.template Length<0>(s);
+    }
+    double rate=S*s.params.at(SIRParam::Beta0);
     if (S>0 && I>0 && rate>0.0) {
-      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"infection rate "<<rate<<" beta0 "<<
-      //  s.params.at(SIRParam::Beta0) << " beta1 " <<
-       // s.params.at(SIRParam::Beta1) << " t0 " << t0 << " N "<<(S+I+R)
-       // << " S "<<S <<" I " << I);
       return {true, std::unique_ptr<ExpDist>(new ExpDist(rate, te))};
     } else {
       //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"infection disable");
@@ -130,26 +136,39 @@ class InfectPen : public SIRTransition
       RandGen& rng) override {
     //SMVLOG(BOOST_LOG_TRIVIAL(trace) << "Fire infection " << lm);
     // s0 i1 r2 i3 r4
-    lm.template Move<0,0>(0, 2, 1);
+    int64_t S=0;
+    for (int64_t s=1; s<susceptible_cnt_+1; ++s) {
+      S+=lm.template Length<0>(s);
+    }
+    int64_t move_it=smv::uniform_index(rng, S);
+    int64_t M=0;
+    for (int64_t m=1; m<susceptible_cnt_+1; ++m) {
+      auto len=lm.template Length<0>(m);
+      if (M>=move_it && len>0) {
+        lm.template Move<0,0>(m, m+susceptible_cnt_, 1);
+      }
+    }
   }
 };
 
 
-// Now make specific transitions.
 class InfectFence : public SIRTransition
 {
+  int64_t susceptible_cnt_;
+public:
+  InfectFence(int64_t susceptible_cnt) : susceptible_cnt_(susceptible_cnt) {}
+
   virtual std::pair<bool, std::unique_ptr<Dist>>
   Enabled(const UserState& s, const Local& lm,
     double te, double t0, RandGen& rng) override {
     // If these are just size_t, then the rate calculation overflows.
-    int64_t S=lm.template Length<0>(0);
-    int64_t I=lm.template Length<0>(1);
-    double rate=s.params.at(SIRParam::Beta1);
+    int64_t I=lm.template Length<0>(0);
+    int64_t S=0;
+    for (int64_t s=1; s<susceptible_cnt_+1; ++s) {
+      S+=lm.template Length<0>(s);
+    }
+    double rate=S*s.params.at(SIRParam::Beta1);
     if (S>0 && I>0 && rate>0.0) {
-      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"infection rate "<<rate<<" beta0 "<<
-      //  s.params.at(SIRParam::Beta0) << " beta1 " <<
-       // s.params.at(SIRParam::Beta1) << " t0 " << t0 << " N "<<(S+I+R)
-       // << " S "<<S <<" I " << I);
       return {true, std::unique_ptr<ExpDist>(new ExpDist(rate, te))};
     } else {
       //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"infection disable");
@@ -161,26 +180,39 @@ class InfectFence : public SIRTransition
       RandGen& rng) override {
     //SMVLOG(BOOST_LOG_TRIVIAL(trace) << "Fire infection " << lm);
     // s0 i1 r2 i3 r4
-    lm.template Move<0,0>(0, 2, 1);
+    int64_t S=0;
+    for (int64_t s=1; s<susceptible_cnt_+1; ++s) {
+      S+=lm.template Length<0>(s);
+    }
+    int64_t move_it=smv::uniform_index(rng, S);
+    int64_t M=0;
+    for (int64_t m=1; m<susceptible_cnt_+1; ++m) {
+      auto len=lm.template Length<0>(m);
+      if (M>=move_it && len>0) {
+        lm.template Move<0,0>(m, m+susceptible_cnt_, 1);
+      }
+    }
   }
 };
 
 
-// Now make specific transitions.
-class Infect : public SIRTransition
+class InfectOther : public SIRTransition
 {
+  int64_t susceptible_cnt_;
+public:
+  InfectOther(int64_t susceptible_cnt) : susceptible_cnt_(susceptible_cnt) {}
+
   virtual std::pair<bool, std::unique_ptr<Dist>>
   Enabled(const UserState& s, const Local& lm,
     double te, double t0, RandGen& rng) override {
     // If these are just size_t, then the rate calculation overflows.
-    int64_t S=lm.template Length<0>(0);
-    int64_t I=lm.template Length<0>(1);
-    double rate=s.params.at(SIRParam::Beta2);
+    int64_t I=lm.template Length<0>(0);
+    int64_t S=0;
+    for (int64_t s=1; s<susceptible_cnt_+1; ++s) {
+      S+=lm.template Length<0>(s);
+    }
+    double rate=S*s.params.at(SIRParam::Beta2);
     if (S>0 && I>0 && rate>0.0) {
-      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"infection rate "<<rate<<" beta0 "<<
-      //  s.params.at(SIRParam::Beta0) << " beta1 " <<
-       // s.params.at(SIRParam::Beta1) << " t0 " << t0 << " N "<<(S+I+R)
-       // << " S "<<S <<" I " << I);
       return {true, std::unique_ptr<ExpDist>(new ExpDist(rate, te))};
     } else {
       //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"infection disable");
@@ -192,7 +224,18 @@ class Infect : public SIRTransition
       RandGen& rng) override {
     //SMVLOG(BOOST_LOG_TRIVIAL(trace) << "Fire infection " << lm);
     // s0 i1 r2 i3 r4
-    lm.template Move<0,0>(0, 2, 1);
+    int64_t S=0;
+    for (int64_t s=1; s<susceptible_cnt_+1; ++s) {
+      S+=lm.template Length<0>(s);
+    }
+    int64_t move_it=smv::uniform_index(rng, S);
+    int64_t M=0;
+    for (int64_t m=1; m<susceptible_cnt_+1; ++m) {
+      auto len=lm.template Length<0>(m);
+      if (M>=move_it && len>0) {
+        lm.template Move<0,0>(m, m+susceptible_cnt_, 1);
+      }
+    }
   }
 };
 
@@ -323,28 +366,39 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
       );
   }
 
-  for (int64_t d_idx=0; d_idx<individual_cnt; ++d_idx) {
-    int pen_d=(d_idx-1)/per_pen;
-    for (int64_t s_idx=0; s_idx<individual_cnt; ++s_idx) {
-      int pen_s=(s_idx-1)/per_pen;
-      if (s_idx!=d_idx) {
-        if (pen_d==pen_s) {
-          bg.AddTransition({d_idx, s_idx, infect0},
-            {Edge{{d_idx, location, s}, -1}, Edge{{s_idx, location, i}, -1}, 
-                Edge{{d_idx, location, e}, 1}, Edge{{s_idx, location, i}, 1}},
-            std::unique_ptr<SIRTransition>(new InfectPen())
+  std::vector<Edge> infect_vec(1+2*per_pen);
+  for (int64_t d_idx=0; d_idx<pen_cnt; ++d_idx) {
+    for (int64_t s_idx=0; s_idx<pen_cnt; ++s_idx) {
+      int64_t s_base=s_idx*per_pen;
+      for (int64_t targ_idx=0; targ_idx<per_pen; ++targ_idx) {
+        infect_vec[1+targ_idx]=Edge{{s_base+targ_idx, location, s},-1};
+        infect_vec[1+per_pen+targ_idx]=Edge{{s_base+targ_idx, location, e},1};
+      }
+      if (s_idx==d_idx) {
+        int64_t src_base=d_idx*per_pen;
+        for (int64_t src_idx=0; src_idx<per_pen; ++src_idx) {
+          int64_t src=src_base+src_idx;
+          infect_vec[0]=Edge{{src, location, i}, -1};
+          bg.AddTransition({src, s_idx, infect0}, infect_vec,
+            std::unique_ptr<SIRTransition>(new InfectPen(per_pen))
             );
-        } else if (AdjacentPens(pen_s, pen_d, g)) {
-          bg.AddTransition({d_idx, s_idx, infect1},
-            {Edge{{d_idx, location, s}, -1}, Edge{{s_idx, location, i}, -1}, 
-                Edge{{d_idx, location, e}, 1}, Edge{{s_idx, location, i}, 1}},
-            std::unique_ptr<SIRTransition>(new InfectFence())
+        }
+      } else if (AdjacentPens(d_idx, s_idx, g)) {
+        int64_t src_base=d_idx*per_pen;
+        for (int64_t src_idx=0; src_idx<per_pen; ++src_idx) {
+          int64_t src=src_base+src_idx;
+          infect_vec[0]=Edge{{src, location, i}, -1};
+          bg.AddTransition({src, s_idx, infect0}, infect_vec,
+            std::unique_ptr<SIRTransition>(new InfectFence(per_pen))
             );
-        } else {
-          bg.AddTransition({d_idx, s_idx, infect2},
-            {Edge{{d_idx, location, s}, -1}, Edge{{s_idx, location, i}, -1}, 
-                Edge{{d_idx, location, e}, 1}, Edge{{s_idx, location, i}, 1}},
-            std::unique_ptr<SIRTransition>(new Infect())
+        }
+      } else {
+        int64_t src_base=d_idx*per_pen;
+        for (int64_t src_idx=0; src_idx<per_pen; ++src_idx) {
+          int64_t src=src_base+src_idx;
+          infect_vec[0]=Edge{{src, location, i}, -1};
+          bg.AddTransition({src, s_idx, infect0}, infect_vec,
+            std::unique_ptr<SIRTransition>(new InfectOther(per_pen))
             );
         }
       }

@@ -14,12 +14,12 @@
 BOOST=/usr/local/boost_1_54_0mt
 # Different Boost installations have different suffixes.
 # If there is no suffix, use "BOOSTVARIANT=".
-BOOSTVARIANT=-mt
+BOOSTVARIANT=
 SEMIMARKOV=/usr/local/include/semimarkov-0.1
 HDF5=/usr/local/hdf5-1.8.11
 MCRAND=/home/ajd27/Documents/mcrand
 
-CXX=g++
+CXX=clang++
 # -DSMVHIDELOG -pg
 OPT=-std=c++11 -g -O2
 INCLUDES=-I$(SEMIMARKOV) -I. -I$(BOOST)/include -I$(HDF5)/include -I$(MCRAND)/include
@@ -32,6 +32,7 @@ LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
 	-lboost_system$(BOOSTVARIANT) -lhdf5 -lhdf5_hl -lgsl -lgslcblas \
 	-lmcrand -lpthread
 
+ALL: seir together
 
 seir: seir_exp.o main.o hdf_file.o
 	$(CXX) $(OPT) -fPIC -o seir seir_exp.o main.o  hdf_file.o $(LIBS)
@@ -40,6 +41,14 @@ seir_exp.o: seir_exp.cpp seir_exp.hpp
 	$(CXX) seir_exp.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-c -o seir_exp.o
 
+
+together: together.o togethermain.o hdf_file.o
+	$(CXX) $(OPT) -fPIC -o together together.o togethermain.o  hdf_file.o $(LIBS)
+
+together.o: together.cpp together.hpp
+	$(CXX) together.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
+	-c -o together.o
+
 hdf_file.o: hdf_file.cpp hdf_file.hpp seir_exp.hpp
 	$(CXX) hdf_file.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-c -o hdf_file.o
@@ -47,6 +56,10 @@ hdf_file.o: hdf_file.cpp hdf_file.hpp seir_exp.hpp
 main.o: main.cpp feedlot_version.hpp seir_exp.hpp
 	$(CXX) main.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-c -o main.o
+
+togethermain.o: togethermain.cpp feedlot_version.hpp together.hpp
+	$(CXX) togethermain.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
+	-c -o togethermain.o
 
 feedlot_version.hpp: Makefile
 	python getgit.py

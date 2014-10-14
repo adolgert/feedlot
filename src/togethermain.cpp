@@ -2,7 +2,7 @@
 #include <sstream>
 #include "boost/program_options.hpp"
 #include "smv.hpp"
-#include "seir_exp.hpp"
+#include "together.hpp"
 #include "hdf_file.hpp"
 #include "ensemble.hpp"
 #include "feedlot_version.hpp"
