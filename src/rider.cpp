@@ -13,6 +13,8 @@
 #include "boost/log/core.hpp"
 #include "boost/math/constants/constants.hpp"
 #include "boost/property_map/property_map.hpp"
+#include "boost/property_map/dynamic_property_map.hpp"
+#include "boost/graph/graphml.hpp"
 #include "boost/mpl/vector.hpp"
 #include "boost/program_options.hpp"
 #include "smv.hpp"
@@ -446,6 +448,11 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
   using Edge=BuildGraph<SIRGSPN>::PlaceEdge;
 
   auto g=BlockStructure(block_cnt, row_cnt);
+  if (false) {
+    boost::dynamic_properties dp;
+    std::ofstream contact_file("blocks.graphml");
+    boost::write_graphml(contact_file, g, dp, true);
+  }
   auto pen_cnt=num_vertices(g);
   int64_t per_pen=individual_cnt/pen_cnt;
   assert((individual_cnt % per_pen)==0);
