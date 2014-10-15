@@ -2,6 +2,9 @@
 #include <sstream>
 #include "boost/program_options.hpp"
 #include "smv.hpp"
+#include "seir_enums.hpp"
+#include "parameter.hpp"
+#include "trajectory.hpp"
 #include "seir_exp.hpp"
 #include "hdf_file.hpp"
 #include "ensemble.hpp"
@@ -73,14 +76,15 @@ int main(int argc, char *argv[]) {
   int run_cnt=1;
   size_t rand_seed=1;
   // Time is in years.
-  std::vector<Parameter> parameters;
-  parameters.emplace_back(Parameter{SIRParam::Beta0, "beta0", 1/0.26,
+  using Param=TypedParameter<SIRParam>;
+  std::vector<Param> parameters;
+  parameters.emplace_back(Param{SIRParam::Beta0, "beta0", 1/0.26,
     "density-dependent infection rate within a pen"});
-  parameters.emplace_back(Parameter{SIRParam::Beta1, "beta1", 0.1/0.26,
+  parameters.emplace_back(Param{SIRParam::Beta1, "beta1", 0.1/0.26,
     "density-dependent infection rate across a fence"});
-  parameters.emplace_back(Parameter{SIRParam::Beta2, "beta2", 0.001/0.26,
+  parameters.emplace_back(Param{SIRParam::Beta2, "beta2", 0.001/0.26,
     "density-dependent infection rate to any other animal"});
-  parameters.emplace_back(Parameter{SIRParam::Gamma, "gamma", 1/8.0,
+  parameters.emplace_back(Param{SIRParam::Gamma, "gamma", 1/8.0,
     "recovery rate"});
   double end_time=30.0;
   bool exacttraj=true;
@@ -200,7 +204,7 @@ int main(int argc, char *argv[]) {
   }
   file.WriteExecutableData(compile_info, parsed_options, seir_init);
 
-  auto runnable=[=](RandGen& rng, size_t single_seed, size_t idx)->void {
+  auto runnable=[=, &file](RandGen& rng, size_t single_seed, size_t idx)->void {
     std::shared_ptr<TrajectoryObserver> observer=0;
     if (exacttraj) {
       observer=std::make_shared<TrajectorySave>();

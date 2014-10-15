@@ -565,7 +565,8 @@ struct SEIROutput
 
 
 int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
-    const std::vector<Parameter>& parameters, TrajectoryObserver& observer,
+    const std::vector<TypedParameter<SIRParam>>& parameters,
+    TrajectoryObserver& observer,
     RandGen& rng, int block_cnt, int row_cnt)
 {
   int64_t individual_cnt=std::accumulate(seir_cnt.begin(), seir_cnt.end(),

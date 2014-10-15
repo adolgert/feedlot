@@ -2,6 +2,9 @@
 #include <sstream>
 #include "boost/program_options.hpp"
 #include "smv.hpp"
+#include "rider_enums.hpp"
+#include "parameter.hpp"
+#include "trajectory.hpp"
 #include "rider.hpp"
 #include "hdf_file.hpp"
 #include "ensemble.hpp"
@@ -60,6 +63,29 @@ class PercentTrajectorySave : public TrajectoryObserver
 };
 
 
+/*! Save the whole trajectory.
+ */
+class PenTrajectorySave : public PenTrajectoryObserver
+{
+  std::vector<PenTrajectory> trajectory_;
+  int64_t cnt_{0};
+ public:
+  PenTrajectorySave(size_t ind_cnt) : trajectory_{ind_cnt*4} {}
+  virtual ~PenTrajectorySave() {}
+  virtual void Step(PenTrajectory entry) override {
+    if (cnt_==trajectory_.size()) {
+      trajectory_.resize(2*cnt_);
+    }
+    trajectory_[cnt_]=entry;
+    ++cnt_;
+  }
+  const std::vector<PenTrajectory>& Trajectory() {
+    trajectory_.resize(cnt_);
+    return trajectory_;
+  }
+};
+
+
 
 
 int main(int argc, char *argv[]) {
@@ -76,29 +102,30 @@ int main(int argc, char *argv[]) {
   int run_cnt=1;
   size_t rand_seed=1;
   // Time is in years.
-  std::vector<Parameter> parameters;
-  parameters.emplace_back(Parameter{SIRParam::Beta0, "beta0", 1/0.26,
+  using MyParm=TypedParameter<SIRParam>;
+  std::vector<MyParm> parameters;
+  parameters.emplace_back(MyParm{SIRParam::Beta0, "beta0", 1/0.26,
     "density-dependent infection rate within a pen"});
-  parameters.emplace_back(Parameter{SIRParam::Beta1, "beta1", 0.1/0.26,
+  parameters.emplace_back(MyParm{SIRParam::Beta1, "beta1", 0.1/0.26,
     "density-dependent infection rate across a fence"});
-  parameters.emplace_back(Parameter{SIRParam::Beta2, "beta2", 0.001/0.26,
+  parameters.emplace_back(MyParm{SIRParam::Beta2, "beta2", 0.001/0.26,
     "density-dependent infection rate to any other animal"});
-  parameters.emplace_back(Parameter{SIRParam::Gamma, "gamma", 1/8.0,
+  parameters.emplace_back(MyParm{SIRParam::Gamma, "gamma", 1/8.0,
     "recovery rate"});
-  parameters.emplace_back(Parameter{SIRParam::RiderMove,
-    "ridermove", 1/8.0, "rate for rider to move pens"});
-  parameters.emplace_back(Parameter{SIRParam::RiderRecover,
-    "riderrecover", 1/8.0, "rider recover from carrying disease"});
-  parameters.emplace_back(Parameter{SIRParam::RiderInfect,
-    "riderinfect", 1/8.0, "rate for rider to infect in pen"});
-  parameters.emplace_back(Parameter{SIRParam::RiderGetInfected,
-    "ridergetinfected", 1/8.0, "rate for rider to pick up infection"});
-  double end_time=30.0;
+  parameters.emplace_back(MyParm{SIRParam::RiderMove,
+    "ridermove", 32.0, "rate for rider to move pens"});
+  parameters.emplace_back(MyParm{SIRParam::RiderRecover,
+    "riderrecover", 32.0*8, "rider recover from carrying disease"});
+  parameters.emplace_back(MyParm{SIRParam::RiderInfect,
+    "riderinfect", 0.1/0.26, "rate for rider to infect in pen"});
+  parameters.emplace_back(MyParm{SIRParam::RiderGetInfected,
+    "ridergetinfected", 0.1/0.26, "rate for rider to pick up infection"});
+  double end_time=std::numeric_limits<double>::infinity();
   bool exacttraj=true;
   bool exactinfect=false;
   int thread_cnt=1;
   std::string log_level;
-  std::string data_file("wellmixed.h5");
+  std::string data_file("rider.h5");
   bool save_file=false;
   std::string translation_file;
   bool test=false;
@@ -217,16 +244,13 @@ int main(int argc, char *argv[]) {
   }
   file.WriteExecutableData(compile_info, parsed_options, seir_init);
 
-  auto runnable=[=](RandGen& rng, size_t single_seed, size_t idx)->void {
-    std::shared_ptr<TrajectoryObserver> observer=0;
-    if (exacttraj) {
-      observer=std::make_shared<TrajectorySave>();
-    } else {
-      observer=std::make_shared<PercentTrajectorySave>();
-    }
+  auto runnable=[=, &file](RandGen& rng, size_t single_seed, size_t idx)->void {
+    std::shared_ptr<PenTrajectorySave> observer=0;
+    observer=std::make_shared<PenTrajectorySave>(
+      static_cast<size_t>(individual_cnt));
 
-    SEIR_run(end_time, seir_init, parameters, *observer, rng, block_cnt, row_cnt);
-    file.SaveTrajectory(parameters, single_seed, idx, observer->Trajectory());
+    SEIR_run(end_time, seir_init, parameters, observer, rng, block_cnt, row_cnt);
+    file.SavePenTrajectory(parameters, single_seed, idx, observer->Trajectory());
   };
 
   afidd::smv::Ensemble<decltype(runnable),RandGen> ensemble(runnable, thread_cnt,

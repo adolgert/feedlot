@@ -17,11 +17,51 @@
 #include "boost/program_options.hpp"
 #include "smv.hpp"
 #include "gspn_random.hpp"
+#include "rider_enums.hpp"
+#include "parameter.hpp"
 #include "rider.hpp"
 
 namespace smv=afidd::smv;
 using namespace smv;
 
+std::ostream& operator<<(std::ostream& os, TransitionType t) {
+  switch (t) {
+    case TransitionType::infect0 :
+      os << "i0";
+      break;
+    case TransitionType::infect1 :
+      os << "i1";
+      break;
+    case TransitionType::infect2 :
+      os << "i2";
+      break;
+    case TransitionType::infectious :
+      os << "is";
+      break;
+    case TransitionType::recover :
+      os << "r";
+      break;
+    case TransitionType::movers :
+      os << "ms";
+      break;
+    case TransitionType::moveri :
+      os << "mi";
+      break;
+    case TransitionType::recoverr :
+      os << "rr";
+      break;
+    case TransitionType::infectr :
+      os << "ir";
+      break;
+    case TransitionType::infectbyr :
+      os << "ib";
+      break;
+    default:
+      os << "unknown transition";
+      break;
+  }
+  return os;
+}
 
 struct IndividualToken
 {
@@ -66,9 +106,9 @@ struct SIRTKey
 {
   int64_t i;
   int64_t j;
-  int64_t kind;
+  TransitionType kind;
   SIRTKey()=default;
-  SIRTKey(int64_t i, int64_t j, int64_t k) : i(i), j(j), kind(k) {}
+  SIRTKey(int64_t i, int64_t j, TransitionType k) : i(i), j(j), kind(k) {}
 
   friend inline
   bool operator<(const SIRTKey& a, const SIRTKey& b) {
@@ -425,15 +465,12 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
     bg.AddPlace({pp_idx, rider, i}, 0);
   }
 
-  enum : int64_t { none, infect0, infect1, infect2, infectious, recover,
-    movers, moveri, recoverr, infectr, infectbyr };
-
   for (int64_t ind_idx=0; ind_idx<individual_cnt; ++ind_idx) {
-    bg.AddTransition({ind_idx, ind_idx, infectious},
+    bg.AddTransition({ind_idx, ind_idx, TransitionType::infectious},
       {Edge{{ind_idx, location, e}, -1}, Edge{{ind_idx, location, i}, 1}},
       std::unique_ptr<SIRTransition>(new Infectious())
       );
-    bg.AddTransition({ind_idx, ind_idx, recover},
+    bg.AddTransition({ind_idx, ind_idx, TransitionType::recover},
       {Edge{{ind_idx, location, i}, -1}, Edge{{ind_idx, location, r}, 1}},
       std::unique_ptr<SIRTransition>(new Recover())
       );
@@ -445,13 +482,13 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
       int pen_s=(s_idx-1)/per_pen;
       if (s_idx!=d_idx) {
         if (pen_d==pen_s) {
-          bg.AddTransition({d_idx, s_idx, infect0},
+          bg.AddTransition({d_idx, s_idx, TransitionType::infect0},
             {Edge{{d_idx, location, s}, -1}, Edge{{s_idx, location, i}, -1}, 
                 Edge{{d_idx, location, e}, 1}, Edge{{s_idx, location, i}, 1}},
             std::unique_ptr<SIRTransition>(new InfectPen())
             );
         } else if (AdjacentPens(pen_s, pen_d, g)) {
-          bg.AddTransition({d_idx, s_idx, infect1},
+          bg.AddTransition({d_idx, s_idx, TransitionType::infect1},
             {Edge{{d_idx, location, s}, -1}, Edge{{s_idx, location, i}, -1}, 
                 Edge{{d_idx, location, e}, 1}, Edge{{s_idx, location, i}, 1}},
             std::unique_ptr<SIRTransition>(new InfectFence())
@@ -467,23 +504,24 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
     // Move
     auto pen_s=SIRPlace{rp_idx, rider, s};
     auto pen_i=SIRPlace{rp_idx, rider, i};
-    auto pen_s_n=SIRPlace{(rp_idx+1)%pen_cnt, rider, s};
-    auto pen_i_n=SIRPlace{(rp_idx+1)%pen_cnt, rider, i};
-    bg.AddTransition({rp_idx, rp_idx, movers},
+    int64_t next_pen=static_cast<int64_t>((rp_idx+1)%pen_cnt);
+    auto pen_s_n=SIRPlace{next_pen, rider, s};
+    auto pen_i_n=SIRPlace{next_pen, rider, i};
+    bg.AddTransition({rp_idx, rp_idx, TransitionType::movers},
       {Edge{pen_s, -1}, Edge{pen_s_n, 1}},
       std::unique_ptr<SIRTransition>(new MoveRider()));
-    bg.AddTransition({rp_idx, rp_idx, moveri},
+    bg.AddTransition({rp_idx, rp_idx, TransitionType::moveri},
       {Edge{pen_i, -1}, Edge{pen_i_n, 1}},
       std::unique_ptr<SIRTransition>(new MoveRider()));
-    bg.AddTransition({rp_idx, rp_idx, recoverr},
+    bg.AddTransition({rp_idx, rp_idx, TransitionType::recoverr},
       {Edge{pen_i, -1}, Edge{pen_s, 1}},
       std::unique_ptr<SIRTransition>(new RecoverRider()));
     for (int64_t c_idx=rp_idx*per_pen; c_idx<(rp_idx+1)*per_pen; ++c_idx) {
-      bg.AddTransition({rp_idx, c_idx, infectr},
+      bg.AddTransition({rp_idx, c_idx, TransitionType::infectr},
         {Edge{pen_s, -1}, Edge{{c_idx, location, i},-1},
          Edge{pen_i, 1}},
          std::unique_ptr<SIRTransition>(new InfectRider()));
-      bg.AddTransition({rp_idx, c_idx, infectbyr},
+      bg.AddTransition({rp_idx, c_idx, TransitionType::infectbyr},
         {Edge{{c_idx, location, s},-1}, Edge{pen_i, -1}, 
          Edge{{c_idx, location, e}, 1}},
          std::unique_ptr<SIRTransition>(new RiderInfects()));
@@ -506,47 +544,65 @@ template<typename GSPN, typename SIRState>
 struct SEIROutput
 {
   using StateArray=std::array<int64_t,4>;
-  TrajectoryObserver& observer_;
+  std::shared_ptr<PenTrajectoryObserver> observer_;
   const GSPN& gspn_;
   StateArray seir_;
   int64_t step_cnt{0};
+  int64_t individual_cnt_;
+  int64_t per_pen_;
 
-  SEIROutput(const GSPN& gspn, TrajectoryObserver& observer,
-      const std::vector<int64_t>& initial)
-  : gspn_(gspn), observer_(observer)
+  SEIROutput(const GSPN& gspn, std::shared_ptr<PenTrajectoryObserver> observer,
+      const std::vector<int64_t>& initial, int64_t per_pen)
+  : gspn_(gspn), observer_(observer), per_pen_(per_pen)
   {
     std::get<0>(seir_)=initial[0];
     std::get<1>(seir_)=initial[1];
     std::get<2>(seir_)=initial[2];
     std::get<3>(seir_)=initial[3];
+    individual_cnt_=std::accumulate(initial.begin(), initial.end(), int64_t{0});
   };
 
   enum : int64_t { none, infect0, infect1, infect2, infectious, recover };
-  void operator()(const SIRState& state) {
+  bool operator()(const SIRState& state) {
     auto transition=gspn_.VertexTransition(state.last_transition);
+    int64_t individual=transition.i;
+    int64_t compartment=0;
+    bool affected=true;
     switch (transition.kind) {
-      case infect0: // infect
-      case infect1:
-      case infect2:
+      case TransitionType::infect0: // infect
+      case TransitionType::infect1:
+      case TransitionType::infect2:
+        compartment=0;
         get<0>(seir_)-=1;
         get<1>(seir_)+=1;
         break;
-      case infectious:
+      case TransitionType::infectbyr:
+        compartment=0;
+        individual=transition.j;
+        get<0>(seir_)-=1;
+        get<1>(seir_)+=1;
+        break;
+      case TransitionType::infectious:
+        compartment=1;
         get<1>(seir_)-=1;
         get<2>(seir_)+=1;
         break;
-      case recover: // recover
+      case TransitionType::recover: // recover
+        compartment=2;
         get<2>(seir_)-=1;
         get<3>(seir_)+=1;
         break;
       default:
-        assert("unknown transition kind");
+        affected=false;
         break;
     }
 
     ++step_cnt;
-    observer_.Step({get<0>(seir_), get<1>(seir_), get<2>(seir_), get<3>(seir_),
-        state.CurrentTime()});
+    if (affected) {
+      int64_t pen=pen_of(individual, per_pen_);
+      observer_->Step({individual, pen, compartment, state.CurrentTime()});
+    }
+    return (std::get<3>(seir_)<individual_cnt_);
   }
 
   void final(const SIRState& state) {
@@ -557,7 +613,8 @@ struct SEIROutput
 
 
 int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
-    const std::vector<Parameter>& parameters, TrajectoryObserver& observer,
+    const std::vector<TypedParameter<SIRParam>>& parameters,
+    std::shared_ptr<PenTrajectoryObserver> observer,
     RandGen& rng, int block_cnt, int row_cnt)
 {
   int64_t individual_cnt=std::accumulate(seir_cnt.begin(), seir_cnt.end(),
@@ -605,10 +662,12 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   using Dynamics=StochasticDynamics<SIRGSPN,SIRState,RandGen>;
   Dynamics dynamics(gspn, {&competing});
 
-  SEIROutput<SIRGSPN,SIRState> output_function(gspn, observer, seir_cnt);
+  SEIROutput<SIRGSPN,SIRState> output_function(gspn, observer, seir_cnt,
+    animals_per_pen);
 
   dynamics.Initialize(&state, &rng);
 
+  BOOST_LOG_TRIVIAL(info)<<"Starting main loop";
   bool running=true;
   auto nothing=[](SIRState&)->void {};
   double last_time=state.CurrentTime();
@@ -621,7 +680,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
           << " new_time "<<new_time;
       }
       last_time=new_time;
-      output_function(state);
+      running=output_function(state);
     }
   }
   if (running) {
