@@ -131,3 +131,49 @@ correctly, given that some files are shared among applications
 and some aren't. Chagned the HDF file to use function templates.
 C++ is just a pain all the time.
 
+## Thursday 16 October 2014
+
+Thanks to sleeplessness following a 4am fire alarm, I know that
+the large memory usage happens during transformation of the
+GSPN graph from a list structure to a vector-based structure.
+That should, fortunately, be simple to fix with a by-hand rewrite.
+Let's first go to scalability, though, by looking again at coalesced
+transitions.
+
+Individuals | Pens | Per pen | Expanded [s] | Coalesced [s]
+----------- | ---- | ------- | ------------ | -------------
+1024        | 32   | 16      | 18           | 10
+2048        | 32   | 32      | 81           | 60
+4096        | 32   | 64      | tl;dr        | 275
+2048        | 64   | 16      | 81 (tl;dr)   | 43
+4096        | 256  | 16      | tl;dr        | 180
+
+That looks like the coalesced do worse for large numbers. My
+implementation kept separate places for each individual, though.
+I could combine those places and put all the susceptible tokens
+at the same place, for this model, at least.
+
+Scalability comes from a couple of factors. 1) How many
+transitions are affected each time one transition fires?
+This determines how many updates happen at each step.
+2) How many total transitions are active at any time?
+This determines how long it takes to select the next
+transition from the list of times. What I'm seeing is that, during
+the fastest part of the epidemic, there about sqrt(N)
+infecteds and sqrt(N) susceptibles, and, even for the coalesced
+transitions, every neighboring transition on the GSPN
+has to be checked 
+
+Let's get rid of individual S states and R states, putting all tokens
+on one place per pen.
+
+Individuals | Pens | Per pen | Expanded [s]  | Single-SR [s]
+----------- | ---- | ------- | ------------  | ---------
+1024        | 32   | 32      | 18                        | 5.7
+2048        | 32  | 64      |  81                      | 30
+4096        | 32  | 128      |  swap                      | 190
+2048        | 128  | 16      |  81                      | 21
+4096        | 128   | 32      | tl;dr                  | 100
+2048        | 256   | 8      |  (tl;dr)                | 23
+4096        | 512  | 8      | tl;dr         | 87
+4096        | 256  | 16      | tl;dr        | 91
