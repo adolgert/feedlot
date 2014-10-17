@@ -1,5 +1,6 @@
 #ifndef _PARAMETER_HPP_
 #define _PARAMETER_HPP_ 1
+#include <string>
 
 struct Parameter {
   std::string name;

@@ -32,7 +32,7 @@ LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
 	-lboost_system$(BOOSTVARIANT) -lhdf5 -lhdf5_hl -lgsl -lgslcblas \
 	-lmcrand -lpthread
 
-ALL: seir together rider
+ALL: seir together rider individual
 
 seir: seir_exp.o main.o hdf_file.o
 	$(CXX) $(OPT) -fPIC -o seir seir_exp.o main.o  hdf_file.o $(LIBS)
@@ -68,6 +68,11 @@ ridermain.o: ridermain.cpp feedlot_version.hpp rider.hpp
 	$(CXX) ridermain.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-c -o ridermain.o
 
+
+individual: individual.cpp fmdv.hpp feedlot_places.hpp feedlot_individual_transitions.hpp
+	$(CXX) individual.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
+	-o individual $(LIBS)
+
 hdf_file.o: hdf_file.cpp hdf_file.hpp seir_exp.hpp
 	$(CXX) hdf_file.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-c -o hdf_file.o
@@ -76,4 +81,4 @@ feedlot_version.hpp: Makefile
 	python getgit.py
 
 clean:
-	rm -f *.o sirexp together rider sirdemo_version.hpp
+	rm -f *.o sirexp together rider individual sirdemo_version.hpp
