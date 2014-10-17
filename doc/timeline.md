@@ -133,12 +133,19 @@ C++ is just a pain all the time.
 
 ## Thursday 16 October 2014
 
+### Memory usage is in graph conversion
 Thanks to sleeplessness following a 4am fire alarm, I know that
 the large memory usage happens during transformation of the
 GSPN graph from a list structure to a vector-based structure.
 That should, fortunately, be simple to fix with a by-hand rewrite.
 Let's first go to scalability, though, by looking again at coalesced
 transitions.
+
+There were two ways to check. One was valgrind, which worked
+well immediately. The other is gperftools' use of tcmalloc,
+which gave me an error about headers >=2**16. Dunno.
+
+### Scalability surprisingly poor for coalesced
 
 Individuals | Pens | Per pen | Expanded [s] | Coalesced [s]
 ----------- | ---- | ------- | ------------ | -------------
@@ -164,6 +171,8 @@ infecteds and sqrt(N) susceptibles, and, even for the coalesced
 transitions, every neighboring transition on the GSPN
 has to be checked 
 
+### Put all tokens for S and R on same place
+
 Let's get rid of individual S states and R states, putting all tokens
 on one place per pen.
 
@@ -177,3 +186,37 @@ Individuals | Pens | Per pen | Expanded [s]  | Single-SR [s]
 2048        | 256   | 8      |  (tl;dr)                | 23
 4096        | 512  | 8      | tl;dr         | 87
 4096        | 256  | 16      | tl;dr        | 91
+
+I realized the problem. When checking which transitions are enabled,
+I was looking at the transition outputs. I modified that. Now
+it's 8.3s for 2048, 35s for 4096. Of these, the time spent in the
+inner loop is 2.8s for 2048 and 12.4s for 4096. That's good.
+Time to return to the memory problem.
+
+### Tackling memory usage
+
+Memory usage came from building the GSPN. I made the ability to
+bypass the super-friendly gspn-builder in favor of building
+the GSPN directly. The penalty you pay is that it could be slow
+adding places and transitions while it reallocates memory, but
+if you know beforehand about how many places and transitions you need,
+it should be faster to build and will, in all cases, use less memory
+during the build process.
+
+Using the Single S and R code, timings and transition counts are as
+follows. Note that this code creates many more transitions than the
+equivalent rider code, which is closer to what we will use.
+
+Individuals | Pens | Places | Transitions | Mem usage [Gb] | Single-SR [s]
+----------- | ---- | ------ | ----------- | -------------- | -------------
+1024 | 32 | 2176 | 34816 | 0.144 | 1.9
+2048 | 32 | 4224 | 69632 | .432 | 7.5
+4096 | 32 | 8320 | 139267 | 1.63 | 31
+8192 | 32 | 16512 | 278528 | 5.84 | 130
+
+The SingleSR code makes N(P+2) transitions. The rider code makes
+2N transitions for the E-I and I-R transitions and approximately another
+3P(N/P) transitions for infection of other cattle. That's total=N(2+3/P).
+Memory usage comes from both the marking and storage of transitions,
+so we'll estimate there should be approximately ten times more cattle we can
+fit into memory with the rider graph.

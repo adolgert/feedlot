@@ -76,4 +76,4 @@ feedlot_version.hpp: Makefile
 	python getgit.py
 
 clean:
-	rm -f *.o sirexp sirdemo_version.hpp
+	rm -f *.o sirexp together rider sirdemo_version.hpp

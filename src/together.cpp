@@ -330,10 +330,8 @@ using SIRGSPN=
 
 /*! SIR infection on an all-to-all graph of uncolored tokens.
  */
-SIRGSPN
-BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
+void BuildSystem(SIRGSPN& bg, int64_t individual_cnt, int block_cnt, int row_cnt)
 {
-  BuildGraph<SIRGSPN> bg;
   using Edge=BuildGraph<SIRGSPN>::PlaceEdge;
 
   auto g=BlockStructure(block_cnt, row_cnt);
@@ -344,12 +342,14 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
       <<" per pen "<<per_pen;
   enum : int64_t { s, e, i, r };
 
+  // 2N
   const int64_t location=0;
   for (int64_t ap_idx=0; ap_idx<individual_cnt; ++ap_idx) {
     for (int64_t place : std::vector<int64_t>{e, i}) {
       bg.AddPlace({ap_idx, location, place}, 0);
     }
   }
+  // 4P
   // Give each pen a summary count of disease states within.
   const int64_t pen_summary=1;
   for (int64_t sp_idx=0; sp_idx<pen_cnt; ++sp_idx) {
@@ -360,11 +360,9 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
 
   enum : int64_t { none, infect0, infect1, infect2, infectious, recover };
 
+  // 2N
   for (int64_t ind_idx=0; ind_idx<individual_cnt; ++ind_idx) {
     int64_t ind_pen=pen_of(ind_idx, per_pen);
-    if (ind_idx==640) {
-      BOOST_LOG_TRIVIAL(debug)<<"ind "<<ind_idx<<" pen "<<ind_pen;
-    }
     bg.AddTransition({ind_idx, ind_idx, infectious},
       {Edge{{ind_idx, location, e}, -1},
        Edge{{ind_pen, pen_summary, e},-1}, Edge{{ind_idx, location, i}, 1},
@@ -379,6 +377,7 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
       );
   }
 
+  // NP
   std::vector<Edge> infect_vec(3+per_pen);
   for (int64_t d_idx=0; d_idx<pen_cnt; ++d_idx) {
     for (int64_t s_idx=0; s_idx<pen_cnt; ++s_idx) {
@@ -418,8 +417,6 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
       }
     }
   }
-  // std::move the transitions because they contain unique_ptr.
-  return std::move(bg.Build());
 }
 
 
@@ -539,8 +536,15 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
 {
   int64_t individual_cnt=std::accumulate(seir_cnt.begin(), seir_cnt.end(),
     int64_t{0});
-  auto gspn=BuildSystem(individual_cnt, block_cnt, row_cnt);
-
+  // 2N 4P 2N NP
+  int64_t N=individual_cnt;
+  int64_t P=2*block_cnt*row_cnt;
+  int64_t guess_cnt=2*N + 4*P + 2*N + N*P;
+  SIRGSPN gspn(guess_cnt);
+  BuildSystem(gspn, individual_cnt, block_cnt, row_cnt);
+  BOOST_LOG_TRIVIAL(debug)<<"GSPN vertex count "<<gspn.VerticesUsed()
+      << " guess " << guess_cnt;
+  BOOST_LOG_TRIVIAL(info)<<"Created GSPN";
   // Marking of the net.
   static_assert(std::is_same<int64_t,SIRGSPN::PlaceKey>::value,
     "The GSPN's internal place type is int64_t.");
@@ -565,7 +569,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     Add<0>(state.marking, summary_id, IndividualToken{});
   }
 
-  CheckMarking(gspn, state.marking, individual_cnt, pen_cnt, animals_per_pen);
+  //CheckMarking(gspn, state.marking, individual_cnt, pen_cnt, animals_per_pen);
 
   BOOST_LOG_TRIVIAL(debug)<<"Moving susceptibles to other states.";
   int64_t infected_pen=smv::uniform_index(rng, pen_cnt);
@@ -586,7 +590,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     }
   }
 
-  CheckMarking(gspn, state.marking, individual_cnt, pen_cnt, animals_per_pen);
+  //CheckMarking(gspn, state.marking, individual_cnt, pen_cnt, animals_per_pen);
 
   //using Propagator=PropagateCompetingProcesses<int64_t,RandGen>;
   using Propagator=NonHomogeneousPoissonProcesses<int64_t,RandGen>;

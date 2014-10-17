@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
     "density-dependent infection rate to any other animal"});
   parameters.emplace_back(Param{SIRParam::Gamma, "gamma", 1/8.0,
     "recovery rate"});
-  double end_time=30.0;
+  double end_time=std::numeric_limits<double>::infinity();
   bool exacttraj=true;
   bool exactinfect=false;
   int thread_cnt=1;
