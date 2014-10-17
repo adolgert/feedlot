@@ -90,7 +90,7 @@ class PenTrajectorySave : public PenTrajectoryObserver
 
 int main(int argc, char *argv[]) {
   namespace po=boost::program_options;
-  po::options_description desc("Well-mixed SIR with demographics.");
+  po::options_description desc("Feedlot with rider.");
   int64_t individual_cnt=1024;
   int64_t exposed_cnt=1;
   int64_t infected_cnt=0;

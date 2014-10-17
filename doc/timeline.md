@@ -183,7 +183,7 @@ Individuals | Pens | Per pen | Expanded [s]  | Single-SR [s]
 4096        | 32  | 128      |  swap                      | 190
 2048        | 128  | 16      |  81                      | 21
 4096        | 128   | 32      | tl;dr                  | 100
-2048        | 256   | 8      |  (tl;dr)                | 23
+2048        | 256   | 8      |  tl;dr                | 23
 4096        | 512  | 8      | tl;dr         | 87
 4096        | 256  | 16      | tl;dr        | 91
 
@@ -220,3 +220,23 @@ The SingleSR code makes N(P+2) transitions. The rider code makes
 Memory usage comes from both the marking and storage of transitions,
 so we'll estimate there should be approximately ten times more cattle we can
 fit into memory with the rider graph.
+
+## Friday 17 October 2014
+
+### Transfer improvements into the rider code
+
+Well, that took an hour. The rider now uses coalesced transitions.
+Please forgive the powers of two. There is no restriction to powers
+of two, just habit.
+
+Individuals | Pens | Per Pen | Transitions | Mem usage [Gb] | Rider-SR [s]
+----------- | ---- | ------ | ----------- | -------------- | -------------
+1024 | 32 |  32  | 0.032 | 0.90
+2048 | 32 |  64  | 0.064 | 3.2
+4096 | 32 |  128  | 0.176 | 14.5
+8192 | 32 | 256   | 0.592 | 67
+16384 | 32 | 512   | 2.032  | 330
+16384 | 64 | 256   | 1.216  | 95
+16384 | 128 | 128   | 0.816  | 38
+32678 | 256 | 128 | 2.160 | 72
+65536 | 512 | 128 | 5.824  | 220
