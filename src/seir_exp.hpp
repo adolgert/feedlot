@@ -4,7 +4,7 @@
 #include <random>
 #include "boost/random/mersenne_twister.hpp"
 #include "mt19937.hpp"
-#include "seir_enums.hpp"
+#include "rider_enums.hpp"
 #include "parameter.hpp"
 #include "trajectory.hpp"
 

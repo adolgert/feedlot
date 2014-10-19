@@ -8,6 +8,7 @@
 #include "rider.hpp"
 #include "hdf_file.hpp"
 #include "ensemble.hpp"
+#include "fmdv.hpp"
 #include "feedlot_version.hpp"
 
 
@@ -110,8 +111,6 @@ int main(int argc, char *argv[]) {
     "density-dependent infection rate across a fence"});
   parameters.emplace_back(MyParm{SIRParam::Beta2, "beta2", 0.001/0.26,
     "density-dependent infection rate to any other animal"});
-  parameters.emplace_back(MyParm{SIRParam::Gamma, "gamma", 1/8.0,
-    "recovery rate"});
   parameters.emplace_back(MyParm{SIRParam::RiderMove,
     "ridermove", 32.0, "rate for rider to move pens"});
   parameters.emplace_back(MyParm{SIRParam::RiderRecover,
@@ -120,6 +119,8 @@ int main(int argc, char *argv[]) {
     "riderinfect", 0.1/0.26, "rate for rider to infect in pen"});
   parameters.emplace_back(MyParm{SIRParam::RiderGetInfected,
     "ridergetinfected", 0.1/0.26, "rate for rider to pick up infection"});
+  FMDV_Mardones_Nonexponential(parameters);
+
   double end_time=std::numeric_limits<double>::infinity();
   bool exacttraj=true;
   bool exactinfect=false;
@@ -213,12 +214,6 @@ int main(int argc, char *argv[]) {
 
   if (test) {
     ;
-  }
-
-  std::map<SIRParam,double*> params;
-  for (auto& pm : parameters) {
-    assert(params.find(pm.kind)==params.end());
-    params[pm.kind]=&pm.value;
   }
 
   int64_t susceptible_cnt=individual_cnt-(exposed_cnt+infected_cnt+recovered_cnt);

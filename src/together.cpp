@@ -231,17 +231,17 @@ public:
 
 
 // Now make specific transitions.
-class Infectious : public SIRTransition
+class InfectiousExponential : public SIRTransition
 {
   int64_t individual_;
 public:
-  Infectious(int64_t individual) : individual_(individual) {}
+  InfectiousExponential(int64_t individual) : individual_(individual) {}
   virtual std::pair<bool, std::unique_ptr<Dist>>
   Enabled(const UserState& s, const Local& lm,
     double te, double t0, RandGen& rng) override {
     int64_t I=lm.template Length<0>(0);
     if (I>0) {
-      double rate=I*s.params.at(SIRParam::Gamma);
+      double rate=I*s.params.at(SIRParam::Latent);
       //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
       return {true, std::unique_ptr<ExpDist>(
         new ExpDist(rate, te))};
@@ -260,8 +260,41 @@ public:
   }
 };
 
+
+template<typename BaseTransition>
+class Infectious : public BaseTransition
+{
+public:
+  virtual std::pair<bool, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>>
+  Enabled(const typename BaseTransition::UserState& s,
+    const typename BaseTransition::LocalMarking& lm,
+    double te, double t0, typename BaseTransition::RandGen& rng) override {
+    int64_t I=lm.template Length<0>(0);
+    if (I>0) {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
+      return {true, std::unique_ptr<
+        afidd::smv::WeibullDistribution<typename BaseTransition::RandGen>>(
+        new afidd::smv::WeibullDistribution<typename BaseTransition::RandGen>(
+          1/s.params.at(SIRParam::LatentBeta),
+          s.params.at(SIRParam::LatentAlpha), te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
+      return {false, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>(nullptr)};
+    }
+  }
+
+  virtual void Fire(typename BaseTransition::UserState& s,
+    typename BaseTransition::LocalMarking& lm, double t0,
+      typename BaseTransition::RandGen& rng) override {
+    lm.template Move<0, 0>(0, 2, 1); // Change the individual
+    lm.template Move<0, 0>(1, 3, 1); // Change the summary count
+  }
+};
+
 // Now make specific transitions.
-class Recover : public SIRTransition
+class RecoverExponential : public SIRTransition
 {
   virtual std::pair<bool, std::unique_ptr<Dist>>
   Enabled(const UserState& s, const Local& lm,
@@ -284,6 +317,39 @@ class Recover : public SIRTransition
     lm.template Move<0, 0>(0, 2, 1); // Move individual to summary count.
   }
 };
+
+// Now make specific transitions.
+template<typename BaseTransition>
+class Recover : public BaseTransition
+{
+  virtual std::pair<bool, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>>
+  Enabled(const typename BaseTransition::UserState& s,
+    const typename BaseTransition::LocalMarking& lm,
+    double te, double t0, typename BaseTransition::RandGen& rng) override {
+    int64_t I=lm.template Length<0>(0);
+    if (I>0) {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
+      return {true, std::unique_ptr<afidd::smv::GammaDistribution<
+        typename BaseTransition::RandGen>>(
+        new afidd::smv::GammaDistribution<
+        typename BaseTransition::RandGen>(
+          s.params.at(SIRParam::GammaAlpha),
+          s.params.at(SIRParam::GammaBeta), te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
+      return {false, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>(nullptr)};    }
+  }
+
+  virtual void Fire(typename BaseTransition::UserState& s,
+    typename BaseTransition::LocalMarking& lm, double t0,
+      typename BaseTransition::RandGen& rng) override {
+    SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire recover " << lm);
+    lm.template Move<0, 0>(0, 2, 1); // Move individual to summary count.
+  }
+};
+
 
 // This kind of adjacency list uses integers for the vertex id, which
 // is special to those using vecS and vecS.
@@ -367,13 +433,13 @@ void BuildSystem(SIRGSPN& bg, int64_t individual_cnt, int block_cnt, int row_cnt
       {Edge{{ind_idx, location, e}, -1},
        Edge{{ind_pen, pen_summary, e},-1}, Edge{{ind_idx, location, i}, 1},
        Edge{{ind_pen, pen_summary, i}, 1}},
-      std::unique_ptr<SIRTransition>(new Infectious(ind_idx))
+      std::unique_ptr<SIRTransition>(new Infectious<SIRTransition>())
       );
     bg.AddTransition({ind_idx, ind_idx, recover},
       {Edge{{ind_idx, location, i}, -1},
        Edge{{ind_pen, pen_summary, i}, -1},
        Edge{{ind_pen, pen_summary, r}, 1}},
-      std::unique_ptr<SIRTransition>(new Recover())
+      std::unique_ptr<SIRTransition>(new Recover<SIRTransition>())
       );
   }
 
@@ -536,7 +602,11 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
 {
   int64_t individual_cnt=std::accumulate(seir_cnt.begin(), seir_cnt.end(),
     int64_t{0});
-  // 2N 4P 2N NP
+
+  // The goal is to put all latent and infecteds in the same pen.
+  int64_t pen_cnt=2*block_cnt*row_cnt;
+  int64_t animals_per_pen=individual_cnt/pen_cnt;
+    // 2N 4P 2N NP
   int64_t N=individual_cnt;
   int64_t P=2*block_cnt*row_cnt;
   int64_t guess_cnt=2*N + 4*P + 2*N + N*P;
@@ -552,13 +622,15 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   using SIRState=GSPNState<Mark,SIRGSPN::TransitionKey,WithParams>;
 
   SIRState state;
+  std::set<SIRParam> scale_param{ SIRParam::Beta0, SIRParam::Beta1,
+      SIRParam::Beta2, SIRParam::RiderInfect };
   for (auto& cp : parameters) {
-    state.user.params[cp.kind]=cp.value;
+    double value=cp.value;
+    if (scale_param.find(cp.kind)!=scale_param.end()) {
+      value=cp.value/animals_per_pen;
+    }
+    state.user.params[cp.kind]=value;
   }
-
-  // The goal is to put all latent and infecteds in the same pen.
-  int64_t pen_cnt=2*block_cnt*row_cnt;
-  int64_t animals_per_pen=individual_cnt/pen_cnt;
 
   BOOST_LOG_TRIVIAL(debug)<<"Creating susceptibles. "<<individual_cnt;
   const int64_t location=0;

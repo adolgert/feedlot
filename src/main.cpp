@@ -2,9 +2,9 @@
 #include <sstream>
 #include "boost/program_options.hpp"
 #include "smv.hpp"
-#include "seir_enums.hpp"
 #include "parameter.hpp"
 #include "trajectory.hpp"
+#include "rider_enums.hpp"
 #include "seir_exp.hpp"
 #include "hdf_file.hpp"
 #include "ensemble.hpp"

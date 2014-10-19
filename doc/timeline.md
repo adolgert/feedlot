@@ -241,3 +241,44 @@ Individuals | Pens | Per Pen | Transitions | Mem usage [Gb] | Rider-SR [s]
 32678 | 256 | 128 | 2.160 | 72
 65536 | 512 | 128 | 5.824  | 220
 102400 | 1024 | 100 | 12  | 560
+
+Now that we have scalability, it's time to get the distributions
+correct. They include a Weibull for the latent period and
+a Gamma for the infectious period. I've implemented the Weibull
+in the Semi-Markov library already, but the Gamma is incomplete
+(get it? incomplete? get it?).
+
+## Saturday 18 October 2014
+
+### Test individual transitions
+
+Spent too many hours getting the Gamma math straight, but it
+matched the theoretical distribution the first time when
+I typed it in, so that felt good. Now I'm building an executable
+which will run a single individual over and over again in order
+to see that it does follow the EIR part of SEIR that was described.
+The executable is in individual.cpp. I run it and make plots
+with individual.jl.
+
+I also put the model parameters and EIR part of the transitions
+into separate header files in order to share them among
+executables. They can certainly be read from a file but are
+in a header file for now. Refactoring this took a little bit.
+
+## Sunday 19 October 2014
+
+### Put non-exponential transitions into other models.
+
+First, I noticed that Mardones et al have graphs of their
+distributions and that those graphs don't match the plots
+of the theoretical distributions. Namely, the latent period
+in the paper's plot has a higher, sooner peak. Ugh.
+I can't fix that right now. It means mailing the authors.
+
+The nonexponential distributions are in the code now,
+but the rider implementation is so dorky that nothing ever
+finishes. That is, the rider takes 24 hours to travel the
+pens, so it gets infected and recovered over and over in each
+pen, and the simulation doesn't proceed. I'll commit
+the new distributions and go back and fix the rider.
+
