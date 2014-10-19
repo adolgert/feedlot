@@ -18,12 +18,16 @@ template<typename ParamClass>
 void FMDV_Mardones_Nonexponential(
     std::vector<TypedParameter<ParamClass>>& parameters) {
   using MyParm=TypedParameter<ParamClass>;
-  parameters.emplace_back(MyParm{ParamClass::LatentAlpha, "latentalpha", 1/1.782,
+  // Shape
+  parameters.emplace_back(MyParm{ParamClass::LatentAlpha, "latentalpha", 1.782,
     "latent period alpha"});
+  // Rate (not scale=1/rate)
   parameters.emplace_back(MyParm{ParamClass::LatentBeta, "latentbeta", 1/3.974,
     "latent period beta"});
-  parameters.emplace_back(MyParm{ParamClass::GammaAlpha, "gammaalpha", 1/3.969,
+  // Shape
+  parameters.emplace_back(MyParm{ParamClass::GammaAlpha, "gammaalpha", 3.969,
     "recovery rate alpha"});
+  // Rate (not scale=1/rate)
   parameters.emplace_back(MyParm{ParamClass::GammaBeta, "gammabeta", 1/1.107,
     "recovery rate beta"});
 }

@@ -86,7 +86,7 @@ public:
         afidd::smv::WeibullDistribution<typename BaseTransition::RandGen>>(
         new afidd::smv::WeibullDistribution<typename BaseTransition::RandGen>(
           s.params.at(SIRParam::LatentAlpha),
-          s.params.at(SIRParam::LatentBeta), te))};
+          1/s.params.at(SIRParam::LatentBeta), te))};
     } else {
       //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
       return {false, std::unique_ptr<afidd::smv::TransitionDistribution< 
@@ -133,6 +133,7 @@ class Recover : public BaseTransition
       typename BaseTransition::RandGen& rng) override {
     SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire recover " << lm);
     lm.template Move<0, 0>(0, 2, 1); // Move individual to summary count.
+    lm.template Move<0, 0>(1, 3, 1); // Change the summary count
   }
 };
 
