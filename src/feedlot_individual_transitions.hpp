@@ -85,8 +85,8 @@ public:
       return {true, std::unique_ptr<
         afidd::smv::WeibullDistribution<typename BaseTransition::RandGen>>(
         new afidd::smv::WeibullDistribution<typename BaseTransition::RandGen>(
-          s.params.at(SIRParam::LatentAlpha),
-          1/s.params.at(SIRParam::LatentBeta), te))};
+          1/s.params.at(SIRParam::LatentBeta),
+          s.params.at(SIRParam::LatentAlpha), te))};
     } else {
       //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
       return {false, std::unique_ptr<afidd::smv::TransitionDistribution< 

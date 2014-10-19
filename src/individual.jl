@@ -1,10 +1,11 @@
 using DataFrames
+using Distributions
 using SmoothingKernels
 using Gadfly
 
 if length(ARGS)<4
-    println("julia comparison.jl run_cnt bins max_time bandwidth")
-    println("julia comparison.jl 1000000 2000 20 0.1")
+    println("julia individual.jl run_cnt bins max_time bandwidth")
+    println("julia individual.jl 1000000 2000 20 0.1")
     exit()
 end
 run_cnt=int(ARGS[1])
@@ -65,14 +66,27 @@ function plot_two(runs::Int, bin_cnt::Int, max_time, bandwidth::Float64)
 
     check_gamma(samples[:,2], 3.969, 1/1.107)
 
-    df=DataFrame(Times=binned[1][2], Latent=binned[1][1],
-        Recovery=binned[2][1])
+    times=binned[1][2]
+    latent_dist=Weibull(1.782, 3.974)
+    recover_dist=Gamma(3.969, 1.107)
+    f(x)=pdf(latent_dist, x)
+    g(x)=pdf(recover_dist, x)
+    latent_theory=Float64[f(x) for x in times]
+    recover_theory=Float64[g(x) for x in times]
+
+    df=DataFrame(Times=times, Latent=binned[1][1],
+        Recovery=binned[2][1], LatentTheory=latent_theory,
+        RecoverTheory=recover_theory)
     writetable("out.csv", df)
     title="Latent and Recovery Periods"
     myplot=plot(df, layer(x="Times", y="Latent", Geom.line,
             Theme(default_color=color("blue"))),
         layer(x="Times", y="Recovery", Geom.line,
-            Theme(default_color=color("green"))))
+            Theme(default_color=color("green"))),
+        layer(x="Times", y="LatentTheory", Geom.line,
+            Theme(default_color=color("lightblue"))),
+        layer(x="Times", y="RecoverTheory", Geom.line,
+            Theme(default_color=color("lightgreen"))))
     filename=join(matchall(r"[A-Za-z]", title))
     draw(PDF("$(filename).pdf", 20cm, 15cm), myplot)
 end
