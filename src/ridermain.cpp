@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
   parameters.emplace_back(MyParm{SIRParam::Beta2, "beta2", 0.001/0.26,
     "density-dependent infection rate to any other animal"});
   parameters.emplace_back(MyParm{SIRParam::RiderMove,
-    "ridermove", 32.0, "rate for rider to move pens"});
+    "ridermove", 32.0/0.2, "rate for rider to move pens"});
   parameters.emplace_back(MyParm{SIRParam::RiderRecover,
     "riderrecover", 32.0*8, "rider recover from carrying disease"});
   parameters.emplace_back(MyParm{SIRParam::RiderInfect,

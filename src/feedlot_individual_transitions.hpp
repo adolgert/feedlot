@@ -29,8 +29,6 @@ public:
   virtual void Fire(typename BaseTransition::UserState& s,
     typename BaseTransition::LocalMarking& lm, double t0,
       typename BaseTransition::RandGen& rng) override {
-    SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire infectious " <<individual_
-        << " marking " << lm);
     lm.template Move<0, 0>(0, 2, 1); // Change the individual
     lm.template Move<0, 0>(1, 3, 1); // Change the summary count
   }
@@ -62,7 +60,6 @@ class RecoverExponential : public BaseTransition
   virtual void Fire(typename BaseTransition::UserState& s,
     typename BaseTransition::LocalMarking& lm, double t0,
       typename BaseTransition::RandGen& rng) override {
-    SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire recover " << lm);
     lm.template Move<0, 0>(0, 2, 1); // Move individual to summary count.
   }
 };
@@ -97,8 +94,6 @@ public:
   virtual void Fire(typename BaseTransition::UserState& s,
     typename BaseTransition::LocalMarking& lm, double t0,
       typename BaseTransition::RandGen& rng) override {
-    SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire infectious " <<individual_
-        << " marking " << lm);
     lm.template Move<0, 0>(0, 2, 1); // Change the individual
     lm.template Move<0, 0>(1, 3, 1); // Change the summary count
   }
@@ -131,7 +126,6 @@ class Recover : public BaseTransition
   virtual void Fire(typename BaseTransition::UserState& s,
     typename BaseTransition::LocalMarking& lm, double t0,
       typename BaseTransition::RandGen& rng) override {
-    SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire recover " << lm);
     lm.template Move<0, 0>(0, 2, 1); // Move individual to summary count.
     lm.template Move<0, 0>(1, 3, 1); // Change the summary count
   }

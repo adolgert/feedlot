@@ -314,7 +314,8 @@ class RecoverExponential : public SIRTransition
   virtual void Fire(UserState& s, Local& lm, double t0,
       RandGen& rng) override {
     SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire recover " << lm);
-    lm.template Move<0, 0>(0, 2, 1); // Move individual to summary count.
+    lm.template Remove<0>(0, 1, rng);
+    lm.template Move<0, 0>(1, 2, 1);
   }
 };
 
@@ -346,7 +347,8 @@ class Recover : public BaseTransition
     typename BaseTransition::LocalMarking& lm, double t0,
       typename BaseTransition::RandGen& rng) override {
     SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire recover " << lm);
-    lm.template Move<0, 0>(0, 2, 1); // Move individual to summary count.
+    lm.template Remove<0>(0, 1, rng);
+    lm.template Move<0, 0>(1, 2, 1);
   }
 };
 

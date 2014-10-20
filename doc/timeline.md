@@ -282,3 +282,37 @@ pens, so it gets infected and recovered over and over in each
 pen, and the simulation doesn't proceed. I'll commit
 the new distributions and go back and fix the rider.
 
+Somehow I introduced a bug. The well-mixed code,
+"together", works fine. The rider code stops
+after one transition. Can't figure it out. Going home.
+
+## Monday 20 October 2014
+
+### Solve the rider bug
+
+The list of initially-enabled transitions looks correct.
+The times aren't infinite, so something should be enabled.
+There is also a last infected that doesn't recover.
+
+Here's how I solved the problem:
+
+- Added a validation test for Uniform distributions to the
+  test suite, as I should have done from the start.
+  This allowed me to fix sampling uniform distributions.
+
+- Created a check on the invariants for the marking. This
+  lead to noticing that one of the transitions failed to
+  move a token.
+
+- Made a way to peek at individual transitions associated
+  with places. This speaks to a lack of an API with which
+  to debug your GSPN.
+
+I also tried lots of other things, including printfs in
+places, or walking through with the visual debugger.
+These were not helpful in this case.
+
+Those steps lead me to realize that, if we put all S
+tokens in the same place, it's hard to know to which E place
+to move the S token when we take it, so I've now labeled
+all S tokens by their index within the pen.
