@@ -332,3 +332,19 @@ because it looks like the rider isn't spreading infection
 the way I hoped. Only the first row of pens is getting
 infected. When I increase the likelihood of spread by the
 rider, it looks like this is just a stochastic effect. Phew.
+
+Todo:
+- Save well-mixed trajectory in same format as rider trajectory.
+- Choose paradigmatic sizes and do some runs.
+
+### Small, medium, and large sizes
+
+- Small=1024 in 1 blocks of 2x8 pens of 64 animals each
+- Medium=3200 in 2 blocks of 2x8 pens of 100 animals each
+- Large=36000 in 6 blocks of 2x15 pens of 200 animals each
+
+Ran 100 instances of medium on two threads in 3 minutes.
+Storage is 25.7 MB.
+
+Spent some time making graphs from the data, then staring
+at the whiteboard. Time to go home.
