@@ -31,7 +31,8 @@ class HDFFile {
     int seed, int idx, const TrajectoryType& trajectory) const;
   template<typename Params>
   bool SavePenTrajectory(const Params& params,
-    int seed, int idx, const std::vector<PenTrajectory>& trajectory) const;
+    int seed, int idx, const std::vector<PenTrajectory>& trajectory,
+    const std::vector<TrajectoryEntry>& initial) const;
   bool WriteExecutableData(const std::map<std::string,std::string>& compile,
     const boost::program_options::basic_parsed_options<char>& cmdline,
     const std::vector<int64_t>& initial_values) const;
@@ -134,17 +135,28 @@ bool HDFFile::SaveTrajectory(const Params& params,
 
 template<typename Params>
 bool HDFFile::SavePenTrajectory(const Params& params,
-    int seed, int idx, const std::vector<PenTrajectory>& trajectory) const {
+    int seed, int idx, const std::vector<PenTrajectory>& trajectory,
+    const std::vector<TrajectoryEntry>& initial) const {
   std::unique_lock<std::mutex> only_me(single_writer_);
+  BOOST_LOG_TRIVIAL(debug)<<"Writing pen trajectory "<<open_;
   assert(open_);
   hsize_t dims[1];
   dims[0]=trajectory.size();
   hid_t dataspace_id=H5Screate_simple(1, dims, NULL);
+  if (dataspace_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not create the dataspace";
+  }
 
   // Disk storage types are defined exactly.
   hid_t trajectory_type=H5Tcreate(H5T_COMPOUND, sizeof(PenTrajectory));
-  H5Tinsert(trajectory_type, "individual", HOFFSET(PenTrajectory, individual),
-      H5T_STD_I64LE);
+  if (trajectory_type<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not create the dataset format datatype";
+  }
+  herr_t h5tres=H5Tinsert(trajectory_type, "individual",
+      HOFFSET(PenTrajectory, individual), H5T_STD_I64LE);
+  if (h5tres<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not insert datatype into dset trajectory";
+  }
   H5Tinsert(trajectory_type, "pen", HOFFSET(PenTrajectory, pen),
       H5T_STD_I64LE);
   H5Tinsert(trajectory_type, "transition", HOFFSET(PenTrajectory, transition),
@@ -160,8 +172,14 @@ bool HDFFile::SavePenTrajectory(const Params& params,
   // When writing, ask library to translate from native type (H5T_NATIVE_LONG)
   // to disk storage type (H5T_STD_I64LE) if necessary.
   hid_t write_trajectory_type=H5Tcreate(H5T_COMPOUND, sizeof(PenTrajectory));
-  H5Tinsert(write_trajectory_type, "individual", HOFFSET(PenTrajectory,
-      individual), H5T_NATIVE_LONG);
+  if (write_trajectory_type<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not create trajectory type for writing";
+  }
+  herr_t h5tres2=H5Tinsert(write_trajectory_type, "individual",
+      HOFFSET(PenTrajectory, individual), H5T_NATIVE_LONG);
+  if (h5tres2<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not insert datatype into dset trajectory";
+  }
   H5Tinsert(write_trajectory_type, "pen", HOFFSET(PenTrajectory, pen),
       H5T_NATIVE_LONG);
   H5Tinsert(write_trajectory_type, "transition", HOFFSET(PenTrajectory,
@@ -176,18 +194,27 @@ bool HDFFile::SavePenTrajectory(const Params& params,
     return false;
   }
 
-  std::stringstream dset_name;
-  dset_name << "dset" << seed << "-" << idx;
-  hid_t dataset_id=H5Dcreate2(trajectory_group_, dset_name.str().c_str(),
+  BOOST_LOG_TRIVIAL(debug)<<"Creating group";
+  std::stringstream dset_group_name;
+  dset_group_name << "dset" << seed << "-" << idx;
+  hid_t dataset_group_id=H5Gcreate(trajectory_group_,
+    dset_group_name.str().c_str(), H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  if (dataset_group_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not create trajectory dataset group";
+  }
+  BOOST_LOG_TRIVIAL(debug)<<"Creating trajectory dataset";
+  hid_t dataset_id=H5Dcreate2(dataset_group_id, "trajectory",
     write_trajectory_type, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   if (dataset_id<0) {
     BOOST_LOG_TRIVIAL(error)<<"Could not make HD5 dataset "<<dataset_id;
+    herr_t dg_status=H5Gclose(dataset_group_id);
     herr_t trajt_status=H5Tclose(trajectory_type);
     herr_t wtrajt_status=H5Tclose(write_trajectory_type);
     herr_t space_status=H5Sclose(dataspace_id);
     return false;
   }
 
+  BOOST_LOG_TRIVIAL(debug)<<"Writing trajectory dataset "<<trajectory.size();
   if (trajectory.size()>0) {
     herr_t write_status=H5Dwrite(dataset_id, write_trajectory_type,
       H5S_ALL, H5S_ALL, H5P_DEFAULT, &trajectory[0]);
@@ -195,6 +222,7 @@ bool HDFFile::SavePenTrajectory(const Params& params,
     if (write_status<0) {
       BOOST_LOG_TRIVIAL(error)<<"Could not write HD5 dataset "<<write_status;
       herr_t trajt_status=H5Tclose(trajectory_type);
+      herr_t dg_status=H5Gclose(dataset_group_id);
       herr_t wtrajt_status=H5Tclose(write_trajectory_type);
       herr_t space_status=H5Sclose(dataspace_id);
       herr_t close_status=H5Dclose(dataset_id);
@@ -204,10 +232,11 @@ bool HDFFile::SavePenTrajectory(const Params& params,
     BOOST_LOG_TRIVIAL(warning)<<"There was no trajectory to write.";
   }
   // Now write dataset attributes.
+  BOOST_LOG_TRIVIAL(debug)<<"Create parameter attributes";
   hsize_t adims=1;
   hid_t dspace_id=H5Screate_simple(1, &adims, NULL);
   for (auto& p : params) {
-    hid_t attr0_id=H5Acreate2(dataset_id, p.name.c_str(), H5T_IEEE_F64LE,
+    hid_t attr0_id=H5Acreate2(dataset_group_id, p.name.c_str(), H5T_IEEE_F64LE,
       dspace_id, H5P_DEFAULT, H5P_DEFAULT);
     herr_t atstatus=H5Awrite(attr0_id, H5T_NATIVE_DOUBLE, &p.value);
     if (atstatus<0) {
@@ -217,10 +246,43 @@ bool HDFFile::SavePenTrajectory(const Params& params,
   }
   H5Sclose(dspace_id);
 
+  // This is the set of initial pen values.
+  std::vector<hsize_t> idims{initial.size(),4};
+  std::vector<int64_t> initial_data(initial.size()*4);
+  size_t eidx{0};
+  for (auto entry : initial) {
+    initial_data[4*eidx]=initial[eidx].s;
+    initial_data[4*eidx+1]=initial[eidx].e;
+    initial_data[4*eidx+2]=initial[eidx].i;
+    initial_data[4*eidx+3]=initial[eidx].r;
+    ++eidx;
+  }
+  BOOST_LOG_TRIVIAL(debug)<<"Create initial value dataspace";
+  hid_t pen_dspace_id=H5Screate_simple(2, &idims[0], NULL);
+  if (pen_dspace_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not create simple dspace for initial vals";
+  }
+  BOOST_LOG_TRIVIAL(debug)<<"Create initial value dataset";
+  hid_t pen_dset_id=H5Dcreate2(dataset_group_id, "initialpencount",
+    H5T_STD_I64LE, pen_dspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  if (pen_dset_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not create dataset for initial vals.";
+  }
+  BOOST_LOG_TRIVIAL(debug)<<"Writing initial value dataset";
+  herr_t pends_write=H5Dwrite(pen_dset_id, H5T_STD_I64LE, H5S_ALL, H5S_ALL,
+    H5P_DEFAULT, &initial_data[0]);
+  if (pends_write<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not write dataset for initial vals.";
+  }
+
+  herr_t pen_dset_status=H5Dclose(pen_dset_id);
+  herr_t idspace_status=H5Sclose(pen_dspace_id);
+
   herr_t wtrajt_status=H5Tclose(write_trajectory_type);
   herr_t trajt_status=H5Tclose(trajectory_type);
   herr_t close_status=H5Dclose(dataset_id);
   herr_t space_status=H5Sclose(dataspace_id);
+  herr_t dg_status=H5Gclose(dataset_group_id);
   return true;
 }
 

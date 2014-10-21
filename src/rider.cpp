@@ -794,20 +794,24 @@ struct SEIROutput
   SEIROutput(const GSPN& gspn,
       NonHomogeneousPoissonProcesses<int64_t,RandGen>& propagator,
       std::shared_ptr<PenTrajectoryObserver> observer,
-      const std::vector<int64_t>& initial, int64_t per_pen)
-  : gspn_(gspn), propagator_(propagator), observer_(observer), per_pen_(per_pen)
+      const std::vector<int64_t>& initial, int64_t pen_cnt, int64_t per_pen)
+  : gspn_(gspn), propagator_(propagator), observer_(observer),
+    per_pen_(per_pen), pen_cnt_(pen_cnt)
   {
     std::get<0>(seir_)=initial[0];
     std::get<1>(seir_)=initial[1];
     std::get<2>(seir_)=initial[2];
     std::get<3>(seir_)=initial[3];
     individual_cnt_=std::accumulate(initial.begin(), initial.end(), int64_t{0});
-    pen_cnt_=individual_cnt_/per_pen_;
   };
 
   enum : int64_t { s, e, i, r };
   enum : int64_t { none, infect0, infect1, infect2, infectious, recover };
   bool operator()(const SIRState& state) {
+    if (step_cnt==0) {
+      this->initial(state);
+    }
+
     auto transition=gspn_.VertexTransition(state.last_transition);
     int64_t individual=-1;
     int64_t affected_pen=transition.j;
@@ -867,7 +871,7 @@ struct SEIROutput
           state.CurrentTime()});
       SMVLOG(BOOST_LOG_TRIVIAL(debug)<<"step cnt "<<step_cnt<<" e "
           <<std::get<1>(seir_)<<" i "<<std::get<2>(seir_)<<" r "
-          <<std::get<3>(seir_));
+          <<std::get<3>(seir_)<<" in pen "<<affected_pen);
     }
     //CheckMarking(gspn_, state.marking, individual_cnt_, pen_cnt_, per_pen_);
 
@@ -905,6 +909,23 @@ struct SEIROutput
     return (std::get<1>(seir_)+std::get<2>(seir_)>0);
   }
 
+  void initial(const SIRState& state) {
+    const int64_t pen_summary=1;
+    std::vector<TrajectoryEntry> seir_init_(pen_cnt_);
+    for (int64_t pen_idx=0; pen_idx<pen_cnt_; ++pen_idx) {
+      int64_t splace=gspn_.PlaceVertex({pen_idx, pen_summary, 0});
+      seir_init_[pen_idx].s=Length<0>(state.marking, splace);
+      splace=gspn_.PlaceVertex({pen_idx, pen_summary, 1});
+      seir_init_[pen_idx].e=Length<0>(state.marking, splace);
+      splace=gspn_.PlaceVertex({pen_idx, pen_summary, 2});
+      seir_init_[pen_idx].i=Length<0>(state.marking, splace);
+      splace=gspn_.PlaceVertex({pen_idx, pen_summary, 3});
+      seir_init_[pen_idx].r=Length<0>(state.marking, splace);
+      seir_init_[pen_idx].t=0;
+    }
+    observer_->SetInitial(seir_init_);
+  }
+
   void final(const SIRState& state) {
     BOOST_LOG_TRIVIAL(info) << "Took "<< step_cnt << " transitions.";
   }
@@ -922,6 +943,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   auto pen_contact=BlockStructure(block_cnt, row_cnt);
   // The goal is to put all latent and infecteds in the same pen.
   int64_t pen_cnt=num_vertices(pen_contact);
+  BOOST_LOG_TRIVIAL(info)<<pen_cnt<<" vertices in pen contact graph";
   int64_t animals_per_pen=individual_cnt/pen_cnt;
 
   int64_t N=individual_cnt;
@@ -1000,7 +1022,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   Dynamics dynamics(gspn, {&competing});
 
   SEIROutput<SIRGSPN,SIRState> output_function(gspn, competing,
-    observer, seir_cnt, animals_per_pen);
+    observer, seir_cnt, pen_cnt, animals_per_pen);
 
   dynamics.Initialize(&state, &rng);
 

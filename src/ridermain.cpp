@@ -69,10 +69,14 @@ class PercentTrajectorySave : public TrajectoryObserver
 class PenTrajectorySave : public PenTrajectoryObserver
 {
   std::vector<PenTrajectory> trajectory_;
+  std::vector<TrajectoryEntry> initial_;
   int64_t cnt_{0};
  public:
   PenTrajectorySave(size_t ind_cnt) : trajectory_{ind_cnt*4} {}
   virtual ~PenTrajectorySave() {}
+  virtual void SetInitial(const std::vector<TrajectoryEntry>& init) {
+    initial_=init;
+  }
   virtual void Step(PenTrajectory entry) override {
     if (cnt_==trajectory_.size()) {
       trajectory_.resize(2*cnt_);
@@ -83,6 +87,9 @@ class PenTrajectorySave : public PenTrajectoryObserver
   const std::vector<PenTrajectory>& Trajectory() {
     trajectory_.resize(cnt_);
     return trajectory_;
+  }
+  const std::vector<TrajectoryEntry>& PenInitial() {
+    return initial_;
   }
 };
 
@@ -245,7 +252,8 @@ int main(int argc, char *argv[]) {
       static_cast<size_t>(individual_cnt));
 
     SEIR_run(end_time, seir_init, parameters, observer, rng, block_cnt, row_cnt);
-    file.SavePenTrajectory(parameters, single_seed, idx, observer->Trajectory());
+    file.SavePenTrajectory(parameters, single_seed, idx, observer->Trajectory(),
+      observer->PenInitial());
   };
 
   afidd::smv::Ensemble<decltype(runnable),RandGen> ensemble(runnable, thread_cnt,

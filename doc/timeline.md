@@ -316,3 +316,13 @@ Those steps lead me to realize that, if we put all S
 tokens in the same place, it's hard to know to which E place
 to move the S token when we take it, so I've now labeled
 all S tokens by their index within the pen.
+
+## Tuesday 21 October 2014
+
+### Format for saved files
+
+I'm realizing that plotting all of this, with the pens,
+is complicated, and that the file format I devised is
+incomplete. All the time comes down to things like file formats,
+doesn't it?
+

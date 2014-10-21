@@ -28,6 +28,7 @@ struct PenTrajectory {
 
 class PenTrajectoryObserver {
 public:
+  virtual void SetInitial(const std::vector<TrajectoryEntry>& init)=0;
   virtual void Step(PenTrajectory pt)=0;
 };
 
