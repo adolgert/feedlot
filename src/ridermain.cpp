@@ -119,13 +119,13 @@ int main(int argc, char *argv[]) {
   parameters.emplace_back(MyParm{SIRParam::Beta2, "beta2", 0.001/0.26,
     "density-dependent infection rate to any other animal"});
   parameters.emplace_back(MyParm{SIRParam::RiderMove,
-    "ridermove", 32.0/0.2, "rate for rider to move pens"});
+    "ridermove", 1.0/(15/(60*24.0)), "rate for rider to move pens"});
   parameters.emplace_back(MyParm{SIRParam::RiderRecover,
-    "riderrecover", 32.0*8, "rider recover from carrying disease"});
+    "riderrecover", 24, "rider recover from carrying disease"});
   parameters.emplace_back(MyParm{SIRParam::RiderInfect,
-    "riderinfect", 0.1/0.26, "rate for rider to infect in pen"});
+    "riderinfect", 1.0/0.26, "rate for rider to infect in pen"});
   parameters.emplace_back(MyParm{SIRParam::RiderGetInfected,
-    "ridergetinfected", 0.1/0.26, "rate for rider to pick up infection"});
+    "ridergetinfected", 1.0/0.26, "rate for rider to pick up infection"});
   FMDV_Mardones_Nonexponential(parameters);
 
   double end_time=std::numeric_limits<double>::infinity();

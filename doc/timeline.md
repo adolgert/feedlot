@@ -326,3 +326,9 @@ is complicated, and that the file format I devised is
 incomplete. All the time comes down to things like file formats,
 doesn't it?
 
+That took until 3:30pm to save the files and plot them.
+And I could use a juice box and a blankie at this point
+because it looks like the rider isn't spreading infection
+the way I hoped. Only the first row of pens is getting
+infected. When I increase the likelihood of spread by the
+rider, it looks like this is just a stochastic effect. Phew.

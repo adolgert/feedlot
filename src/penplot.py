@@ -2,6 +2,7 @@ import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import h5py
+import quickpen
 
 logger=logging.getLogger(__file__)
 
@@ -53,3 +54,6 @@ def test_one():
     f=h5py.File("rider.h5","r")
     tr,times,obs=quickpen.per_pen_trajectory(f, "dset1-1")
     small_multiples(tr, times, obs, 4)
+
+if __name__=='__main__':
+    test_one()
