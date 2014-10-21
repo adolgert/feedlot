@@ -809,29 +809,45 @@ struct SEIROutput
   enum : int64_t { none, infect0, infect1, infect2, infectious, recover };
   bool operator()(const SIRState& state) {
     auto transition=gspn_.VertexTransition(state.last_transition);
-    int64_t individual=transition.i;
+    int64_t individual=-1;
+    int64_t affected_pen=transition.j;
     int64_t compartment=0;
     bool affected=true;
     switch (transition.kind) {
-      case TransitionType::infect0: // infect
-      case TransitionType::infect1:
-      case TransitionType::infect2:
+      case TransitionType::infect0: // infect same pen
+        affected_pen=transition.j;
         compartment=0;
         get<0>(seir_)-=1;
         get<1>(seir_)+=1;
         break;
-      case TransitionType::infectbyr:
+      case TransitionType::infect1: // adjacent pen.
+        affected_pen=transition.j;
         compartment=0;
-        individual=transition.j;
+        get<0>(seir_)-=1;
+        get<1>(seir_)+=1;
+        break;
+      case TransitionType::infect2: // some other pen
+        affected_pen=transition.j;
+        compartment=0;
+        get<0>(seir_)-=1;
+        get<1>(seir_)+=1;
+        break;
+      case TransitionType::infectbyr: // rider infects pen.
+        affected_pen=transition.j;
+        compartment=0;
         get<0>(seir_)-=1;
         get<1>(seir_)+=1;
         break;
       case TransitionType::infectious:
+        individual=transition.i;
+        affected_pen=pen_of(individual, per_pen_);
         compartment=1;
         get<1>(seir_)-=1;
         get<2>(seir_)+=1;
         break;
       case TransitionType::recover: // recover
+        individual=transition.i;
+        affected_pen=pen_of(individual, per_pen_);
         compartment=2;
         get<2>(seir_)-=1;
         get<3>(seir_)+=1;
@@ -847,8 +863,8 @@ struct SEIROutput
 
     SMVLOG(BOOST_LOG_TRIVIAL(debug)<<"observer: transition "<<transition);
     if (affected) {
-      int64_t pen=pen_of(individual, per_pen_);
-      observer_->Step({individual, pen, compartment, state.CurrentTime()});
+      observer_->Step({individual, affected_pen, compartment,
+          state.CurrentTime()});
       SMVLOG(BOOST_LOG_TRIVIAL(debug)<<"step cnt "<<step_cnt<<" e "
           <<std::get<1>(seir_)<<" i "<<std::get<2>(seir_)<<" r "
           <<std::get<3>(seir_));
@@ -951,7 +967,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     Add<0>(state.marking, summary_id, IndividualToken{sus_idx%animals_per_pen});
   }
 
-  int64_t infected_pen=smv::uniform_index(rng, pen_cnt);
+  int64_t infected_pen=0; //smv::uniform_index(rng, pen_cnt);
   BOOST_LOG_TRIVIAL(debug)<<"Moving susceptibles to other states. First "
       <<"infected pen is "<<infected_pen;
   int64_t first_in_pen=animals_per_pen*infected_pen;

@@ -6,16 +6,17 @@ from default_parser import DefaultArgumentParser
 
 logger=logging.getLogger(__file__)
 
-def plot_single(traj_dset):
+def per_pen_trajectory(traj_dset, initial_values, pen_cnt):
     cnt=len(traj_dset)
     logger.debug("{0} values in dataset".format(cnt))
     # The dataset is an array of tuples, not a 2d array.
-    who=np.zeros(cnt, np.int64)
-    pen=np.zeros(cnt, np.int64)
-    transition=np.zeros(cnt, np.int64)
-    t=np.zeros(cnt, np.double)
+    pen=np.zeros((pen_cnt, 4, 4*per_pen), np.int64)
+    t=np.zeros((pen_cnt, 4*per_pen), np.float64)
+    obs_cnt=np.ones(pen_cnt, np.int64)
     for idx, val in enumerate(traj_dset):
-        who[idx], pen[idx], transition[idx], t[idx]=val
+        who, pen, transition, t=val
+        pen_idx=obs_cnt[pen]
+        pen[pen,]
 
     # transition 0 takes S to E
     # transition 1 takes E to I
@@ -23,11 +24,18 @@ def plot_single(traj_dset):
 
 def foreach_trajectory(f, func):
     trajectories=f['/trajectory']
-
     for trajectory_name in trajectories:
         dset=trajectories[trajectory_name]
         func(dset)
 
+def seir_initial(f):
+    initial_values=f["/trajectory"].attrs["Initial Values"]
+    if len(initial_values)<4
+        seir_values=np.zeros(4)
+        for i in range(len(initial_values)):
+            seir_values[i]=initial_values[i]
+        initial_values=seir_values
+    return initial_values
 
 def showds(ds):
     print(ds)
@@ -48,24 +56,12 @@ def showproginfo(f):
             print("{0}: {1}".format(x, attrs[x]))
 
 
-def eeid_long_behavior():
-    B=1/70
-    beta=400
-    mu=1/70
-    gamma=365/14
-    S=(mu+gamma)*B/(beta*mu)
-    I=(beta-mu-gamma)*B/(beta*(mu+gamma))
-    R=gamma*I/mu
-    print("EEID long time is\n\tS\t{0}\n\tI\t{1}\n\tR\t{2}".format(S, I, R))
-
-
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser=DefaultArgumentParser(description="Quick look at an H5 file")
     parser.add_function("info", "Find what program made the file.")
     parser.add_function("trajectory", "Plot the trajectory")
     parser.add_function("dir", "List datasets")
-    parser.add_function("eeid", "verify eeid example values")
     parser.add_argument("--file", dest="file", action="store",
         default="rider.h5", help="data file to read")
 
@@ -80,8 +76,6 @@ if __name__ == "__main__":
         foreach_trajectory(f, plot_single)
     if args.dir:
         foreach_trajectory(f, showds)
-    if args.eeid:
-        eeid_long_behavior()
     #foreach_trajectory("sirexp.h5", plot_single)
     if not parser.any_function():
         parser.print_help()

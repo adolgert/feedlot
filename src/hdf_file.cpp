@@ -115,7 +115,7 @@ bool HDFFile::WriteExecutableData(const std::map<std::string,std::string>& compi
   }
 
   {
-    hsize_t sdims=3;
+    hsize_t sdims=siri.size();
     hid_t sirspace_id=H5Screate_simple(1, &sdims, NULL);
 
     hid_t attr1_id=H5Acreate2(trajectory_group_, "Initial Values",
