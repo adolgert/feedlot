@@ -18,6 +18,9 @@
 #include "smv.hpp"
 #include "gspn_random.hpp"
 #include "seir_exp.hpp"
+#include "rider_enums.hpp"
+#include "place_transition.hpp"
+#include "pen.hpp"
 
 namespace smv=afidd::smv;
 using namespace smv;
@@ -30,59 +33,6 @@ struct IndividualToken
   inline friend
   std::ostream& operator<<(std::ostream& os, const IndividualToken& it){
     return os << "T";
-  }
-};
-
-
-struct SIRPlace
-{
-  int64_t individual;
-  int64_t location;
-  int64_t disease;
-  SIRPlace()=default;
-  SIRPlace(int64_t i, int64_t l, int64_t d)
-    : individual(i), location(l), disease(d) {}
-  friend inline
-  bool operator<(const SIRPlace& a, const SIRPlace& b) {
-    return LazyLess(a.individual, b.individual, a.location, b.location,
-        a.disease, b.disease);
-  }
-
-  friend inline
-  bool operator==(const SIRPlace& a, const SIRPlace& b) {
-    return (a.individual==b.individual) && (a.location==b.location) &&
-        (a.disease==b.disease);
-  }
-
-  friend inline
-  std::ostream& operator<<(std::ostream& os, const SIRPlace& cp) {
-    return os << '(' << cp.individual << ',' << cp.location << ',' <<
-        cp.disease << ')';
-  }
-};
-
-
-struct SIRTKey
-{
-  int64_t i;
-  int64_t j;
-  int64_t kind;
-  SIRTKey()=default;
-  SIRTKey(int64_t i, int64_t j, int64_t k) : i(i), j(j), kind(k) {}
-
-  friend inline
-  bool operator<(const SIRTKey& a, const SIRTKey& b) {
-    return LazyLess(a.i, b.i, a.j, b.j, a.kind, b.kind);
-  }
-
-  friend inline
-  bool operator==(const SIRTKey& a, const SIRTKey& b) {
-    return (a.i==b.i) && (a.j==b.j) && (a.kind==b.kind);
-  }
-
-  friend inline
-  std::ostream& operator<<(std::ostream& os, const SIRTKey& cp) {
-    return os << '(' << cp.i << ',' << cp.j << ',' << cp.kind << ')';
   }
 };
 
@@ -247,42 +197,6 @@ class Recover : public SIRTransition
   }
 };
 
-// This kind of adjacency list uses integers for the vertex id, which
-// is special to those using vecS and vecS.
-using PenContactGraph=boost::adjacency_list<boost::vecS,
-    boost::vecS,boost::undirectedS>;
-/*! Feedlots look like suburbs. There are long blocks with streets
- *  between. Each block has row_cnt pens, sitting back-to-back.
- *  Returns block_cnt*row_cnt*2 pens.
- */
-PenContactGraph BlockStructure(int block_cnt, int row_cnt) {
-  PenContactGraph g(block_cnt*row_cnt*2);
-  for (int bidx=0; bidx<block_cnt; ++bidx) {
-    int base=bidx*row_cnt*2;
-    add_edge(base, base+1, g);
-    for (int row_idx=1; row_idx<row_cnt; ++row_idx) {
-      add_edge(base+row_idx*2, base+row_idx*2+1, g);
-      add_edge(base+row_idx*2, base+(row_idx-1)*2, g);
-      add_edge(base+row_idx*2+1,  base+(row_idx-1)*2+1, g);
-    }
-  }
-  return g;
-}
-
-bool AdjacentPens(int i, int j, const PenContactGraph& g) {
-  using AdjIter=boost::graph_traits<PenContactGraph>::adjacency_iterator;
-  AdjIter start, end;
-  assert(i<num_vertices(g));
-  std::tie(start, end)=adjacent_vertices(i, g);
-  for ( ; start!=end; ++start) {
-    if (*start==j) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 // The GSPN itself.
 using SIRGSPN=
     ExplicitTransitions<SIRPlace, SIRTKey, Local, RandGen, WithParams>;
@@ -313,11 +227,11 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
   enum : int64_t { none, infect0, infect1, infect2, infectious, recover };
 
   for (int64_t ind_idx=0; ind_idx<individual_cnt; ++ind_idx) {
-    bg.AddTransition({ind_idx, ind_idx, infectious},
+    bg.AddTransition({ind_idx, ind_idx, TransitionType::infectious},
       {Edge{{ind_idx, location, e}, -1}, Edge{{ind_idx, location, i}, 1}},
       std::unique_ptr<SIRTransition>(new Infectious())
       );
-    bg.AddTransition({ind_idx, ind_idx, recover},
+    bg.AddTransition({ind_idx, ind_idx, TransitionType::recover},
       {Edge{{ind_idx, location, i}, -1}, Edge{{ind_idx, location, r}, 1}},
       std::unique_ptr<SIRTransition>(new Recover())
       );
@@ -329,19 +243,19 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
       int pen_s=(s_idx-1)/per_pen;
       if (s_idx!=d_idx) {
         if (pen_d==pen_s) {
-          bg.AddTransition({d_idx, s_idx, infect0},
+          bg.AddTransition({d_idx, s_idx, TransitionType::infect0},
             {Edge{{d_idx, location, s}, -1}, Edge{{s_idx, location, i}, -1}, 
                 Edge{{d_idx, location, e}, 1}, Edge{{s_idx, location, i}, 1}},
             std::unique_ptr<SIRTransition>(new InfectPen())
             );
         } else if (AdjacentPens(pen_s, pen_d, g)) {
-          bg.AddTransition({d_idx, s_idx, infect1},
+          bg.AddTransition({d_idx, s_idx, TransitionType::infect1},
             {Edge{{d_idx, location, s}, -1}, Edge{{s_idx, location, i}, -1}, 
                 Edge{{d_idx, location, e}, 1}, Edge{{s_idx, location, i}, 1}},
             std::unique_ptr<SIRTransition>(new InfectFence())
             );
         } else {
-          bg.AddTransition({d_idx, s_idx, infect2},
+          bg.AddTransition({d_idx, s_idx, TransitionType::infect2},
             {Edge{{d_idx, location, s}, -1}, Edge{{s_idx, location, i}, -1}, 
                 Edge{{d_idx, location, e}, 1}, Edge{{s_idx, location, i}, 1}},
             std::unique_ptr<SIRTransition>(new Infect())
@@ -366,14 +280,18 @@ template<typename GSPN, typename SIRState>
 struct SEIROutput
 {
   using StateArray=std::array<int64_t,4>;
-  TrajectoryObserver& observer_;
+  std::shared_ptr<PenTrajectoryObserver> observer_;
   const GSPN& gspn_;
   StateArray seir_;
   int64_t step_cnt{0};
+  int64_t pen_cnt_;
+  int64_t per_pen_;
 
-  SEIROutput(const GSPN& gspn, TrajectoryObserver& observer,
-      const std::vector<int64_t>& initial)
-  : gspn_(gspn), observer_(observer)
+  SEIROutput(const GSPN& gspn,
+      std::shared_ptr<PenTrajectoryObserver> observer,
+      const std::vector<int64_t>& initial, int64_t pen_cnt,
+      int64_t per_pen)
+  : gspn_(gspn), observer_(observer), pen_cnt_(pen_cnt), per_pen_(per_pen)
   {
     std::get<0>(seir_)=initial[0];
     std::get<1>(seir_)=initial[1];
@@ -381,23 +299,32 @@ struct SEIROutput
     std::get<3>(seir_)=initial[3];
   };
 
-  enum : int64_t { none, infect0, infect1, infect2, infectious, recover };
   void operator()(const SIRState& state) {
+    if (step_cnt==0) {
+      this->initial(state);
+    }
+
     auto transition=gspn_.VertexTransition(state.last_transition);
+    auto individual=transition.i;
+    auto pen=pen_of(individual, per_pen_);
+    int64_t compartment=-1;
     switch (transition.kind) {
-      case infect0: // infect
-      case infect1:
-      case infect2:
+      case TransitionType::infect0: // infect
+      case TransitionType::infect1:
+      case TransitionType::infect2:
         get<0>(seir_)-=1;
         get<1>(seir_)+=1;
+        compartment=0;
         break;
-      case infectious:
+      case TransitionType::infectious:
         get<1>(seir_)-=1;
         get<2>(seir_)+=1;
+        compartment=1;
         break;
-      case recover: // recover
+      case TransitionType::recover: // recover
         get<2>(seir_)-=1;
         get<3>(seir_)+=1;
+        compartment=2;
         break;
       default:
         assert("unknown transition kind");
@@ -405,8 +332,24 @@ struct SEIROutput
     }
 
     ++step_cnt;
-    observer_.Step({get<0>(seir_), get<1>(seir_), get<2>(seir_), get<3>(seir_),
-        state.CurrentTime()});
+    observer_->Step({individual, pen, compartment, state.CurrentTime()});
+  }
+
+  void initial(const SIRState& state) {
+    const int64_t pen_summary=1;
+    std::vector<TrajectoryEntry> seir_init_(pen_cnt_);
+    for (int64_t pen_idx=0; pen_idx<pen_cnt_; ++pen_idx) {
+      int64_t splace=gspn_.PlaceVertex({pen_idx, pen_summary, 0});
+      seir_init_[pen_idx].s=Length<0>(state.marking, splace);
+      splace=gspn_.PlaceVertex({pen_idx, pen_summary, 1});
+      seir_init_[pen_idx].e=Length<0>(state.marking, splace);
+      splace=gspn_.PlaceVertex({pen_idx, pen_summary, 2});
+      seir_init_[pen_idx].i=Length<0>(state.marking, splace);
+      splace=gspn_.PlaceVertex({pen_idx, pen_summary, 3});
+      seir_init_[pen_idx].r=Length<0>(state.marking, splace);
+      seir_init_[pen_idx].t=0;
+    }
+    observer_->SetInitial(seir_init_);
   }
 
   void final(const SIRState& state) {
@@ -418,7 +361,7 @@ struct SEIROutput
 
 int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     const std::vector<TypedParameter<SIRParam>>& parameters,
-    TrajectoryObserver& observer,
+    std::shared_ptr<PenTrajectoryObserver> observer,
     RandGen& rng, int block_cnt, int row_cnt)
 {
   int64_t individual_cnt=std::accumulate(seir_cnt.begin(), seir_cnt.end(),
@@ -463,7 +406,8 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   using Dynamics=StochasticDynamics<SIRGSPN,SIRState,RandGen>;
   Dynamics dynamics(gspn, {&competing});
 
-  SEIROutput<SIRGSPN,SIRState> output_function(gspn, observer, seir_cnt);
+  SEIROutput<SIRGSPN,SIRState> output_function(gspn, observer, seir_cnt,
+      pen_cnt, animals_per_pen);
 
   dynamics.Initialize(&state, &rng);
 

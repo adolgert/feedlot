@@ -695,7 +695,6 @@ struct SEIROutput
   };
 
   enum : int64_t { s, e, i, r };
-  enum : int64_t { none, infect0, infect1, infect2, infectious, recover };
   bool operator()(const SIRState& state) {
     if (step_cnt==0) {
       this->initial(state);

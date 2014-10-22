@@ -35,8 +35,9 @@ LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
 all: seir rider individual
 .PHONY: all
 
-seir: seir_exp.o main.o hdf_file.o
-	$(CXX) $(OPT) -o seir seir_exp.o main.o  hdf_file.o $(LIBS)
+seir: seir_exp.o main.o hdf_file.o trajectory.o pen.o rider_enums.o place_transition.o
+	$(CXX) $(OPT) -o seir seir_exp.o main.o  hdf_file.o trajectory.o pen.o \
+	rider_enums.o place_transition.o $(LIBS)
 
 seir_exp.o: seir_exp.cpp seir_exp.hpp
 	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@

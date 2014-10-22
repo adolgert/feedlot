@@ -8,66 +8,13 @@
 #include "seir_exp.hpp"
 #include "hdf_file.hpp"
 #include "ensemble.hpp"
+#include "fmdv.hpp"
 #include "feedlot_version.hpp"
-
-
-
-
-/*! Save the whole trajectory.
- */
-class TrajectorySave : public TrajectoryObserver
-{
-  std::vector<TrajectoryEntry> trajectory_;
- public:
-  virtual void Step(TrajectoryEntry seirt) override {
-    trajectory_.emplace_back(seirt);
-  }
-  virtual const std::vector<TrajectoryEntry>& Trajectory() const {
-    return trajectory_; }
-};
-
-
-
-/*! Save the trajectory every time any of SIR change by a percent.
- */
-class PercentTrajectorySave : public TrajectoryObserver
-{
-  int64_t step_{0};
-  int64_t threshhold_{0};
-  double percent_{0.0001};
-
-  TrajectoryEntry last_{0,0,0,0,0.0};
-  std::vector<TrajectoryEntry> trajectory_;
- public:
-  PercentTrajectorySave() {}
-
-  virtual void Step(TrajectoryEntry seirt) override {
-    if (0==step_) {
-      last_=seirt;
-      threshhold_=std::floor(percent_*(seirt.s+seirt.e+seirt.i+seirt.r));
-      trajectory_.emplace_back(seirt);
-    } else {
-      bool ps=std::abs(seirt.s-last_.s)>threshhold_;
-      bool pe=std::abs(seirt.e-last_.e)>threshhold_;
-      bool pi=std::abs(seirt.i-last_.i)>threshhold_;
-      bool pr=std::abs(seirt.r-last_.r)>threshhold_;
-      if (ps||pe||pi||pr) {
-        trajectory_.emplace_back(seirt);
-        last_=seirt;
-      }
-    }
-    ++step_;
-  }
-  virtual const std::vector<TrajectoryEntry>& Trajectory() const {
-    return trajectory_; }
-};
-
-
 
 
 int main(int argc, char *argv[]) {
   namespace po=boost::program_options;
-  po::options_description desc("Well-mixed SIR with demographics.");
+  po::options_description desc("Well-mixed SEIR with demographics.");
   int64_t individual_cnt=1024;
   int64_t exposed_cnt=1;
   int64_t infected_cnt=0;
@@ -205,15 +152,13 @@ int main(int argc, char *argv[]) {
   file.WriteExecutableData(compile_info, parsed_options, seir_init);
 
   auto runnable=[=, &file](RandGen& rng, size_t single_seed, size_t idx)->void {
-    std::shared_ptr<TrajectoryObserver> observer=0;
-    if (exacttraj) {
-      observer=std::make_shared<TrajectorySave>();
-    } else {
-      observer=std::make_shared<PercentTrajectorySave>();
-    }
+    std::shared_ptr<PenTrajectorySave> observer=0;
+    observer=std::make_shared<PenTrajectorySave>(
+      static_cast<size_t>(individual_cnt));
 
-    SEIR_run(end_time, seir_init, parameters, *observer, rng, 2, 4);
-    file.SaveTrajectory(parameters, single_seed, idx, observer->Trajectory());
+    SEIR_run(end_time, seir_init, parameters, observer, rng, 2, 4);
+    file.SavePenTrajectory(parameters, single_seed, idx, observer->Trajectory(),
+      observer->PenInitial());
   };
 
   afidd::smv::Ensemble<decltype(runnable),RandGen> ensemble(runnable, thread_cnt,
