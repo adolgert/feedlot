@@ -22,48 +22,12 @@
 #include "rider_enums.hpp"
 #include "parameter.hpp"
 #include "rider.hpp"
+#include "pen.hpp"
+#include "place_transition.hpp"
 
 namespace smv=afidd::smv;
 using namespace smv;
 
-std::ostream& operator<<(std::ostream& os, TransitionType t) {
-  switch (t) {
-    case TransitionType::infect0 :
-      os << "i0";
-      break;
-    case TransitionType::infect1 :
-      os << "i1";
-      break;
-    case TransitionType::infect2 :
-      os << "i2";
-      break;
-    case TransitionType::infectious :
-      os << "is";
-      break;
-    case TransitionType::recover :
-      os << "r";
-      break;
-    case TransitionType::movers :
-      os << "ms";
-      break;
-    case TransitionType::moveri :
-      os << "mi";
-      break;
-    case TransitionType::recoverr :
-      os << "rr";
-      break;
-    case TransitionType::infectr :
-      os << "ir";
-      break;
-    case TransitionType::infectbyr :
-      os << "ib";
-      break;
-    default:
-      os << "unknown transition";
-      break;
-  }
-  return os;
-}
 
 struct IndividualToken
 {
@@ -74,59 +38,6 @@ struct IndividualToken
   inline friend
   std::ostream& operator<<(std::ostream& os, const IndividualToken& it){
     return os << "T";
-  }
-};
-
-
-struct SIRPlace
-{
-  int64_t individual;
-  int64_t location;
-  int64_t disease;
-  SIRPlace()=default;
-  SIRPlace(int64_t i, int64_t l, int64_t d)
-    : individual(i), location(l), disease(d) {}
-  friend inline
-  bool operator<(const SIRPlace& a, const SIRPlace& b) {
-    return LazyLess(a.individual, b.individual, a.location, b.location,
-        a.disease, b.disease);
-  }
-
-  friend inline
-  bool operator==(const SIRPlace& a, const SIRPlace& b) {
-    return (a.individual==b.individual) && (a.location==b.location) &&
-        (a.disease==b.disease);
-  }
-
-  friend inline
-  std::ostream& operator<<(std::ostream& os, const SIRPlace& cp) {
-    return os << '(' << cp.individual << ',' << cp.location << ',' <<
-        cp.disease << ')';
-  }
-};
-
-
-struct SIRTKey
-{
-  int64_t i;
-  int64_t j;
-  TransitionType kind;
-  SIRTKey()=default;
-  SIRTKey(int64_t i, int64_t j, TransitionType k) : i(i), j(j), kind(k) {}
-
-  friend inline
-  bool operator<(const SIRTKey& a, const SIRTKey& b) {
-    return LazyLess(a.i, b.i, a.j, b.j, a.kind, b.kind);
-  }
-
-  friend inline
-  bool operator==(const SIRTKey& a, const SIRTKey& b) {
-    return (a.i==b.i) && (a.j==b.j) && (a.kind==b.kind);
-  }
-
-  friend inline
-  std::ostream& operator<<(std::ostream& os, const SIRTKey& cp) {
-    return os << '(' << cp.i << ',' << cp.j << ',' << cp.kind << ')';
   }
 };
 
@@ -552,42 +463,6 @@ public:
   }
 };
 
-// This kind of adjacency list uses integers for the vertex id, which
-// is special to those using vecS and vecS.
-using PenContactGraph=boost::adjacency_list<boost::vecS,
-    boost::vecS,boost::undirectedS>;
-/*! Feedlots look like suburbs. There are long blocks with streets
- *  between. Each block has row_cnt pens, sitting back-to-back.
- *  Returns block_cnt*row_cnt*2 pens.
- */
-PenContactGraph BlockStructure(int block_cnt, int row_cnt) {
-  PenContactGraph g(block_cnt*row_cnt*2);
-  for (int bidx=0; bidx<2*block_cnt; ++bidx) {
-    int base=bidx*row_cnt;
-    for (int right_idx=0; right_idx<row_cnt-1; ++right_idx) {
-      add_edge(base+right_idx, base+right_idx+1, g);
-    }
-  }
-  return g;
-}
-
-bool AdjacentPens(int i, int j, const PenContactGraph& g) {
-  using AdjIter=boost::graph_traits<PenContactGraph>::adjacency_iterator;
-  AdjIter start, end;
-  assert(i<num_vertices(g));
-  std::tie(start, end)=adjacent_vertices(i, g);
-  for ( ; start!=end; ++start) {
-    if (*start==j) {
-      return true;
-    }
-  }
-  return false;
-}
-
-int64_t pen_of(int64_t individual, int64_t per_pen) {
-  return individual/per_pen;
-}
-
 // The GSPN itself.
 using SIRGSPN=
     ExplicitTransitions<SIRPlace, SIRTKey, Local, RandGen, WithParams>;
@@ -595,7 +470,7 @@ using SIRGSPN=
 /*! SIR infection on an all-to-all graph of uncolored tokens.
  */
 void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
-    const PenContactGraph& g)
+    const PenContactGraph& g, bool infect_other_pens)
 {
   using Edge=BuildGraph<SIRGSPN>::PlaceEdge;
 
@@ -679,7 +554,16 @@ void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
             );
         }
       } else {
-        ;
+        if (infect_other_pens) {
+          int64_t src_base=d_idx*per_pen;
+          for (int64_t src_idx=0; src_idx<per_pen; ++src_idx) {
+            int64_t src=src_base+src_idx;
+            infect_vec[0]=Edge{{src, location, i}, -1};
+            bg.AddTransition({src, s_idx, TransitionType::infect2}, infect_vec,
+              std::unique_ptr<SIRTransition>(new InfectOther(per_pen))
+              );
+          }
+        }
       }
     }
   }
@@ -936,7 +820,8 @@ struct SEIROutput
 int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     const std::vector<TypedParameter<SIRParam>>& parameters,
     std::shared_ptr<PenTrajectoryObserver> observer,
-    RandGen& rng, int block_cnt, int row_cnt)
+    RandGen& rng, int block_cnt, int row_cnt, bool use_rider,
+    bool infect_other_pens)
 {
   int64_t individual_cnt=std::accumulate(seir_cnt.begin(), seir_cnt.end(),
     int64_t{0});
@@ -953,13 +838,16 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   int64_t rider_places=(P+1)*2;
   int64_t individual_transitions=2*N; // infectious and recover.
   int64_t animal_infect=(P+CE*2)*animals_per_pen;
+  if (infect_other_pens) {
+    animal_infect=P*P*animals_per_pen;
+  }
   int64_t rider_infect=P+N; // infect and infected by.
   int64_t rider_move=(P+1)*2;
   int64_t rider_recover=P;
   int64_t guess_cnt=animal_places+rider_places+individual_transitions
       +animal_infect+rider_infect+rider_move+rider_recover;
   SIRGSPN gspn(guess_cnt);
-  BuildSystem(gspn, individual_cnt, pen_contact);
+  BuildSystem(gspn, individual_cnt, pen_contact, infect_other_pens);
   BOOST_LOG_TRIVIAL(debug)<<"GSPN vertex count "<<gspn.VerticesUsed()
       << " guess " << guess_cnt;
 
@@ -1009,9 +897,11 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     }
   }
 
-  // The rider starts outside the pens.
-  auto rider_id=gspn.PlaceVertex({0, 2, 0});
-  Add<0>(state.marking, rider_id, IndividualToken{});
+  if (use_rider) {
+    // The rider starts outside the pens.
+    auto rider_id=gspn.PlaceVertex({0, 2, 0});
+    Add<0>(state.marking, rider_id, IndividualToken{});
+  }
   // BOOST_LOG_TRIVIAL(debug)<<"Checking marking just after building.";
   // CheckMarking(gspn, state.marking, individual_cnt, pen_cnt, animals_per_pen);
 

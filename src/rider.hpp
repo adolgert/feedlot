@@ -16,6 +16,7 @@ using RandGen=afidd::rng::mt19937;
 int64_t SEIR_run(double time_limit, const std::vector<int64_t>& seir_cnt,
     const std::vector<TypedParameter<SIRParam>>& parameters,
     std::shared_ptr<PenTrajectoryObserver> observer,
-    RandGen& rng, int block_cnt, int row_cnt);
+    RandGen& rng, int block_cnt, int row_cnt, bool use_rider,
+    bool infect_other_pens);
 
 #endif

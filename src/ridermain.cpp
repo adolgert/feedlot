@@ -11,91 +11,6 @@
 #include "fmdv.hpp"
 #include "feedlot_version.hpp"
 
-
-
-
-/*! Save the whole trajectory.
- */
-class TrajectorySave : public TrajectoryObserver
-{
-  std::vector<TrajectoryEntry> trajectory_;
- public:
-  virtual void Step(TrajectoryEntry seirt) override {
-    trajectory_.emplace_back(seirt);
-  }
-  virtual const std::vector<TrajectoryEntry>& Trajectory() const {
-    return trajectory_; }
-};
-
-
-
-/*! Save the trajectory every time any of SIR change by a percent.
- */
-class PercentTrajectorySave : public TrajectoryObserver
-{
-  int64_t step_{0};
-  int64_t threshhold_{0};
-  double percent_{0.0001};
-
-  TrajectoryEntry last_{0,0,0,0,0.0};
-  std::vector<TrajectoryEntry> trajectory_;
- public:
-  PercentTrajectorySave() {}
-
-  virtual void Step(TrajectoryEntry seirt) override {
-    if (0==step_) {
-      last_=seirt;
-      threshhold_=std::floor(percent_*(seirt.s+seirt.e+seirt.i+seirt.r));
-      trajectory_.emplace_back(seirt);
-    } else {
-      bool ps=std::abs(seirt.s-last_.s)>threshhold_;
-      bool pe=std::abs(seirt.e-last_.e)>threshhold_;
-      bool pi=std::abs(seirt.i-last_.i)>threshhold_;
-      bool pr=std::abs(seirt.r-last_.r)>threshhold_;
-      if (ps||pe||pi||pr) {
-        trajectory_.emplace_back(seirt);
-        last_=seirt;
-      }
-    }
-    ++step_;
-  }
-  virtual const std::vector<TrajectoryEntry>& Trajectory() const {
-    return trajectory_; }
-};
-
-
-/*! Save the whole trajectory.
- */
-class PenTrajectorySave : public PenTrajectoryObserver
-{
-  std::vector<PenTrajectory> trajectory_;
-  std::vector<TrajectoryEntry> initial_;
-  int64_t cnt_{0};
- public:
-  PenTrajectorySave(size_t ind_cnt) : trajectory_{ind_cnt*4} {}
-  virtual ~PenTrajectorySave() {}
-  virtual void SetInitial(const std::vector<TrajectoryEntry>& init) {
-    initial_=init;
-  }
-  virtual void Step(PenTrajectory entry) override {
-    if (cnt_==trajectory_.size()) {
-      trajectory_.resize(2*cnt_);
-    }
-    trajectory_[cnt_]=entry;
-    ++cnt_;
-  }
-  const std::vector<PenTrajectory>& Trajectory() {
-    trajectory_.resize(cnt_);
-    return trajectory_;
-  }
-  const std::vector<TrajectoryEntry>& PenInitial() {
-    return initial_;
-  }
-};
-
-
-
-
 int main(int argc, char *argv[]) {
   namespace po=boost::program_options;
   po::options_description desc("Feedlot with rider.");
@@ -103,6 +18,8 @@ int main(int argc, char *argv[]) {
   int64_t exposed_cnt=1;
   int64_t infected_cnt=0;
   int64_t recovered_cnt=0;
+  bool use_rider=true;
+  bool infect_other_pens=false;
 
   int64_t block_cnt=2;
   int64_t row_cnt=8;
@@ -129,8 +46,6 @@ int main(int argc, char *argv[]) {
   FMDV_Mardones_Nonexponential(parameters);
 
   double end_time=std::numeric_limits<double>::infinity();
-  bool exacttraj=true;
-  bool exactinfect=false;
   int thread_cnt=1;
   std::string log_level;
   std::string data_file("rider.h5");
@@ -170,12 +85,12 @@ int main(int argc, char *argv[]) {
     ("endtime",
       po::value<double>(&end_time)->default_value(end_time),
       "how many years to run")
-    ("exacttraj",
-      po::value<bool>(&exacttraj)->default_value(exacttraj),
-      "save trajectory only when it changes by a certain amount")
-    ("exactinfect",
-      po::value<bool>(&exactinfect)->default_value(exactinfect),
-      "set true to use exact distribution for seasonal infection")
+    ("rider",
+      po::value<bool>(&use_rider)->default_value(use_rider),
+      "Whether a rider carries infection to next pens")
+    ("otherpens",
+      po::value<bool>(&infect_other_pens)->default_value(infect_other_pens),
+      "Whether there is a background infection between any two pens.")
     ("datafile",
       po::value<std::string>(&data_file)->default_value(data_file),
       "Write to this data file.")
@@ -251,7 +166,8 @@ int main(int argc, char *argv[]) {
     observer=std::make_shared<PenTrajectorySave>(
       static_cast<size_t>(individual_cnt));
 
-    SEIR_run(end_time, seir_init, parameters, observer, rng, block_cnt, row_cnt);
+    SEIR_run(end_time, seir_init, parameters, observer, rng, block_cnt, row_cnt,
+        use_rider, infect_other_pens);
     file.SavePenTrajectory(parameters, single_seed, idx, observer->Trajectory(),
       observer->PenInitial());
   };

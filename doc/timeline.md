@@ -348,3 +348,7 @@ Storage is 25.7 MB.
 
 Spent some time making graphs from the data, then staring
 at the whiteboard. Time to go home.
+
+## Wed 22 October 2014
+
+## Moving data handling code from rider to other applications

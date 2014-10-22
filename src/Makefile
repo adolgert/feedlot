@@ -21,7 +21,7 @@ MCRAND=/home/ajd27/Documents/mcrand
 
 CXX=g++
 # -DSMVHIDELOG -pg
-OPT=-std=c++11 -g -O2 -DSMVHIDELOG
+OPT=-std=c++11 -DHAVE_CONFIG_H -fPIC -g -O2 -DSMVHIDELOG
 INCLUDES=-I$(SEMIMARKOV) -I. -I$(BOOST)/include -I$(HDF5)/include -I$(MCRAND)/include
 LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
     -lboost_unit_test_framework$(BOOSTVARIANT) \
@@ -32,14 +32,14 @@ LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
 	-lboost_system$(BOOSTVARIANT) -lhdf5 -lhdf5_hl -lgsl -lgslcblas \
 	-lmcrand -lpthread
 
-ALL: seir together rider individual
+all: seir together rider individual
+.PHONY: all
 
 seir: seir_exp.o main.o hdf_file.o
-	$(CXX) $(OPT) -fPIC -o seir seir_exp.o main.o  hdf_file.o $(LIBS)
+	$(CXX) $(OPT) -o seir seir_exp.o main.o  hdf_file.o $(LIBS)
 
 seir_exp.o: seir_exp.cpp seir_exp.hpp
-	$(CXX) seir_exp.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
-	-c -o seir_exp.o
+	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
 
 main.o: main.cpp feedlot_version.hpp seir_exp.hpp
 	$(CXX) main.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
@@ -57,8 +57,9 @@ togethermain.o: togethermain.cpp feedlot_version.hpp together.hpp
 	-c -o togethermain.o
 
 
-rider: rider.o ridermain.o hdf_file.o
-	$(CXX) $(OPT) -fPIC -o rider rider.o ridermain.o  hdf_file.o $(LIBS)
+rider: rider.o ridermain.o hdf_file.o trajectory.o pen.o rider_enums.o place_transition.o
+	$(CXX) $(OPT) -fPIC -o rider rider.o ridermain.o  hdf_file.o \
+	trajectory.o pen.o rider_enums.o place_transition.o $(LIBS)
 
 rider.o: rider.cpp rider.hpp
 	$(CXX) rider.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
@@ -73,9 +74,20 @@ individual: individual.cpp fmdv.hpp feedlot_places.hpp feedlot_individual_transi
 	$(CXX) individual.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-o individual $(LIBS)
 
-hdf_file.o: hdf_file.cpp hdf_file.hpp seir_exp.hpp
-	$(CXX) hdf_file.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
-	-c -o hdf_file.o
+hdf_file.o: hdf_file.cpp hdf_file.hpp trajectory.hpp parameter.hpp
+	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
+
+trajectory.o: trajectory.cpp trajectory.hpp
+	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
+
+pen.o: pen.cpp pen.hpp
+	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
+
+rider_enums.o: rider_enums.cpp rider_enums.hpp
+	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
+
+place_transition.o: place_transition.cpp place_transition.hpp
+	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
 
 feedlot_version.hpp: Makefile
 	python getgit.py
