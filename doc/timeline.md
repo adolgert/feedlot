@@ -352,3 +352,35 @@ at the whiteboard. Time to go home.
 ## Wed 22 October 2014
 
 ## Moving data handling code from rider to other applications
+This worked. I was able to delete the together.cpp application
+because I could implement it within the rider code just
+by turning on or off parts of the GSPN and marking, which is
+fun. The SEIR code, the simple individual-based all-to-all
+now uses the same headers as the rider code where possible,
+so that code is shared, not duplicated. Lots of refactoring
+happening.
+
+## Planning
+Spent two (three?) hours just talking about what we would like to do.
+The plots that I've made should go together as a kind of
+report on whatever ensemble of data files. Of interest
+to include are
+
+- Provenance in the report
+- Force of infection, the integrated hazard
+- Dave's report on comparison with theory for Gamma functions
+- Report comparing two different parameter sets' ensembles.
+- Running on the cluster to produce the report.
+- Live demo-ish by running jobs or poking at the code on screen.
+
+And todo:
+
+1. Make a double-gamma version of the code for validation.
+2. Enhance the contact graph input so it has geometry and is input.
+3. Generate reports for single, ensemble, comparison.
+4. Code documentation, maybe with reports embedded.
+5. Demographics
+6. Hospital
+7. Airborne
+8. Vaccination
+
