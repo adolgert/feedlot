@@ -48,6 +48,7 @@ using Local=LocalMarking<Uncolored<IndividualToken>>;
 struct WithParams {
   // Put our parameters here.
   std::map<SIRParam,double> params;
+  int64_t individual_within_pen;
 };
 
 
@@ -96,6 +97,7 @@ public:
     });
     assert(ta.second==true);
     int64_t individual_idx=ta.first;
+    s.individual_within_pen=individual_idx;
     const auto checker=[individual_idx](IndividualToken& t) {
       assert(t.id==individual_idx);
     };
@@ -137,6 +139,7 @@ public:
     });
     assert(ta.second==true);
     int64_t individual_idx=ta.first;
+    s.individual_within_pen=individual_idx;
     const auto checker=[individual_idx](IndividualToken& t) {
       assert(t.id==individual_idx);
     };
@@ -178,6 +181,7 @@ public:
     });
     assert(ta.second==true);
     int64_t individual_idx=ta.first;
+    s.individual_within_pen=individual_idx;
     const auto checker=[individual_idx](IndividualToken& t) {
       assert(t.id==individual_idx);
     };
@@ -454,6 +458,7 @@ public:
     });
     assert(ta.second==true);
     int64_t individual_idx=ta.first;
+    s.individual_within_pen=individual_idx;
     const auto checker=[individual_idx](IndividualToken& t) {
       assert(t.id==individual_idx);
     };
@@ -697,7 +702,7 @@ struct SEIROutput
     }
 
     auto transition=gspn_.VertexTransition(state.last_transition);
-    int64_t individual=-1;
+    int64_t individual=state.user.individual_within_pen+transition.j*per_pen_;
     int64_t affected_pen=transition.j;
     int64_t compartment=0;
     bool affected=true;

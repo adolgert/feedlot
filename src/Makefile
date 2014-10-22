@@ -32,7 +32,7 @@ LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
 	-lboost_system$(BOOSTVARIANT) -lhdf5 -lhdf5_hl -lgsl -lgslcblas \
 	-lmcrand -lpthread
 
-all: seir together rider individual
+all: seir rider individual
 .PHONY: all
 
 seir: seir_exp.o main.o hdf_file.o
@@ -44,18 +44,6 @@ seir_exp.o: seir_exp.cpp seir_exp.hpp
 main.o: main.cpp feedlot_version.hpp seir_exp.hpp
 	$(CXX) main.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-c -o main.o
-
-together: together.o togethermain.o hdf_file.o
-	$(CXX) $(OPT) -fPIC -o together together.o togethermain.o  hdf_file.o $(LIBS)
-
-together.o: together.cpp together.hpp
-	$(CXX) together.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
-	-c -o together.o
-
-togethermain.o: togethermain.cpp feedlot_version.hpp together.hpp
-	$(CXX) togethermain.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
-	-c -o togethermain.o
-
 
 rider: rider.o ridermain.o hdf_file.o trajectory.o pen.o rider_enums.o place_transition.o
 	$(CXX) $(OPT) -fPIC -o rider rider.o ridermain.o  hdf_file.o \
