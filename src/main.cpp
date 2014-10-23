@@ -9,6 +9,7 @@
 #include "hdf_file.hpp"
 #include "ensemble.hpp"
 #include "fmdv.hpp"
+#include "model_options.hpp"
 #include "feedlot_version.hpp"
 
 
@@ -31,8 +32,10 @@ int main(int argc, char *argv[]) {
     "density-dependent infection rate across a fence"});
   parameters.emplace_back(Param{SIRParam::Beta2, "beta2", 0.001/0.26,
     "density-dependent infection rate to any other animal"});
-  parameters.emplace_back(Param{SIRParam::Gamma, "gamma", 1/8.0,
-    "recovery rate"});
+  FMDV_Mardones_Nonexponential(parameters);
+  FMDV_Mardones_Exponential(parameters);
+  auto model_opts=model_options();
+  model_opts[ModelOptions::AllToAllInfection]=true;
   double end_time=std::numeric_limits<double>::infinity();
   bool exacttraj=true;
   bool exactinfect=false;
@@ -69,12 +72,14 @@ int main(int argc, char *argv[]) {
     ("endtime",
       po::value<double>(&end_time)->default_value(end_time),
       "how many years to run")
-    ("exacttraj",
-      po::value<bool>(&exacttraj)->default_value(exacttraj),
-      "save trajectory only when it changes by a certain amount")
-    ("exactinfect",
-      po::value<bool>(&exactinfect)->default_value(exactinfect),
-      "set true to use exact distribution for seasonal infection")
+    ("exponential",
+      po::value<bool>(&model_opts[ModelOptions::ExponentialTransitions])->
+        default_value(model_opts[ModelOptions::ExponentialTransitions]),
+      "Use exponentially-distributed latent and infectious periods")
+    ("doublegamma",
+      po::value<bool>(&model_opts[ModelOptions::DoubleGamma])->
+        default_value(model_opts[ModelOptions::DoubleGamma]),
+      "Use gamma-distributed latent and infectious periods")
     ("datafile",
       po::value<std::string>(&data_file)->default_value(data_file),
       "Write to this data file.")
@@ -156,7 +161,7 @@ int main(int argc, char *argv[]) {
     observer=std::make_shared<PenTrajectorySave>(
       static_cast<size_t>(individual_cnt));
 
-    SEIR_run(end_time, seir_init, parameters, observer, rng, 2, 4);
+    SEIR_run(end_time, seir_init, parameters, observer, rng, model_opts, 2, 4);
     file.SavePenTrajectory(parameters, single_seed, idx, observer->Trajectory(),
       observer->PenInitial());
   };

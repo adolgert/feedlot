@@ -351,7 +351,7 @@ at the whiteboard. Time to go home.
 
 ## Wed 22 October 2014
 
-## Moving data handling code from rider to other applications
+### Moving data handling code from rider to other applications
 This worked. I was able to delete the together.cpp application
 because I could implement it within the rider code just
 by turning on or off parts of the GSPN and marking, which is
@@ -384,3 +384,17 @@ And todo:
 7. Airborne
 8. Vaccination
 
+## Thursday 23 October 2014
+
+### Double-Gamma
+
+Making a simple SEIR where the latent and infectious periods
+are both gamma-distributed, so that we can compare with
+theory. A gamma-distributed model with an integer shape
+parameter is called an Erlang distribution and is equivalent
+to a sum of k exponential distributions, so we can simulate
+it using an alternative technique.
+
+I have the double-gamma working in the seir version
+of the program and the rider version, now. I'm working
+on making it easier to specify the pen structure.

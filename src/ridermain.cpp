@@ -9,6 +9,7 @@
 #include "hdf_file.hpp"
 #include "ensemble.hpp"
 #include "fmdv.hpp"
+#include "model_options.hpp"
 #include "feedlot_version.hpp"
 
 int main(int argc, char *argv[]) {
@@ -44,6 +45,10 @@ int main(int argc, char *argv[]) {
   parameters.emplace_back(MyParm{SIRParam::RiderGetInfected,
     "ridergetinfected", 1.0/0.26, "rate for rider to pick up infection"});
   FMDV_Mardones_Nonexponential(parameters);
+  FMDV_Mardones_Exponential(parameters);
+  auto model_opts=model_options();
+  model_opts[ModelOptions::AllToAllInfection]=false;
+  model_opts[ModelOptions::Rider]=true;
 
   double end_time=std::numeric_limits<double>::infinity();
   int thread_cnt=1;
@@ -76,7 +81,7 @@ int main(int argc, char *argv[]) {
     ("penblocks",
       po::value<int64_t>(&block_cnt),
       "number of city blocks of pens")
-    ("penrows,r",
+    ("penrows",
       po::value<int64_t>(&row_cnt),
       "number of rows within a block of pens")
     ("seed",

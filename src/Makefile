@@ -35,9 +35,10 @@ LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
 all: seir rider individual
 .PHONY: all
 
-seir: seir_exp.o main.o hdf_file.o trajectory.o pen.o rider_enums.o place_transition.o
+seir: seir_exp.o main.o hdf_file.o trajectory.o pen.o rider_enums.o \
+		place_transition.o model_options.o
 	$(CXX) $(OPT) -o seir seir_exp.o main.o  hdf_file.o trajectory.o pen.o \
-	rider_enums.o place_transition.o $(LIBS)
+	rider_enums.o place_transition.o model_options.o $(LIBS)
 
 seir_exp.o: seir_exp.cpp seir_exp.hpp
 	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
@@ -46,9 +47,10 @@ main.o: main.cpp feedlot_version.hpp seir_exp.hpp
 	$(CXX) main.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-c -o main.o
 
-rider: rider.o ridermain.o hdf_file.o trajectory.o pen.o rider_enums.o place_transition.o
+rider: rider.o ridermain.o hdf_file.o trajectory.o pen.o rider_enums.o \
+		place_transition.o model_options.o
 	$(CXX) $(OPT) -fPIC -o rider rider.o ridermain.o  hdf_file.o \
-	trajectory.o pen.o rider_enums.o place_transition.o $(LIBS)
+	trajectory.o pen.o rider_enums.o place_transition.o model_options.o $(LIBS)
 
 rider.o: rider.cpp rider.hpp
 	$(CXX) rider.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
@@ -76,6 +78,9 @@ rider_enums.o: rider_enums.cpp rider_enums.hpp
 	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
 
 place_transition.o: place_transition.cpp place_transition.hpp
+	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
+
+model_options.o: model_options.cpp model_options.hpp
 	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
 
 feedlot_version.hpp: Makefile

@@ -256,6 +256,38 @@ public:
   }
 };
 
+template<typename BaseTransition>
+class InfectiousGamma : public BaseTransition
+{
+public:
+  virtual std::pair<bool, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>>
+  Enabled(const typename BaseTransition::UserState& s,
+    const typename BaseTransition::LocalMarking& lm,
+    double te, double t0, typename BaseTransition::RandGen& rng) override {
+    using Gamma=afidd::smv::GammaDistribution<typename BaseTransition::RandGen>;
+    int64_t I=lm.template Length<0>(0);
+    if (I>0) {
+      SMVLOG(BOOST_LOG_TRIVIAL(debug)<<"Infectious enable I "<<I);
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
+      return {true, std::unique_ptr<Gamma>(
+        new Gamma(s.params.at(SIRParam::LatentAlpha),
+          s.params.at(SIRParam::LatentBeta), te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
+      return {false, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>(nullptr)};
+    }
+  }
+
+  virtual void Fire(typename BaseTransition::UserState& s,
+    typename BaseTransition::LocalMarking& lm, double t0,
+      typename BaseTransition::RandGen& rng) override {
+    lm.template Move<0, 0>(0, 2, 1); // Change the individual
+    lm.template Move<0, 0>(1, 3, 1); // Change the summary count
+  }
+};
+
 // Now make specific transitions.
 class RecoverExponential : public SIRTransition
 {

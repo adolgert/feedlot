@@ -51,7 +51,8 @@ using SIRTransition=ExplicitTransition<Local,RandGen,WithParams>;
 
 using Dist=TransitionDistribution<RandGen>;
 using ExpDist=ExponentialDistribution<RandGen>;
-
+using GammaDist=GammaDistribution<RandGen>;
+using WeibullDist=WeibullDistribution<RandGen>;
 
 
 // Now make specific transitions.
@@ -155,7 +156,61 @@ class Infectious : public SIRTransition
     double te, double t0, RandGen& rng) override {
     int64_t I=lm.template Length<0>(0);
     if (I>0) {
-      double rate=I*s.params.at(SIRParam::Gamma);
+      double th=1.0/s.params.at(SIRParam::LatentBeta);
+      double a=s.params.at(SIRParam::LatentAlpha);
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
+      return {true, std::unique_ptr<WeibullDistribution<RandGen>>(
+        new WeibullDistribution<RandGen>(th, a, te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
+      return {false, std::unique_ptr<Dist>(nullptr)};
+    }
+  }
+
+  virtual void Fire(UserState& s, Local& lm, double t0,
+      RandGen& rng) override {
+    //SMVLOG(BOOST_LOG_TRIVIAL(trace) << "Fire recover " << lm);
+    lm.template Move<0, 0>(0, 1, 1);
+  }
+};
+
+
+// Now make specific transitions.
+class InfectiousGamma : public SIRTransition
+{
+  virtual std::pair<bool, std::unique_ptr<Dist>>
+  Enabled(const UserState& s, const Local& lm,
+    double te, double t0, RandGen& rng) override {
+    int64_t I=lm.template Length<0>(0);
+    if (I>0) {
+      double a=s.params.at(SIRParam::LatentAlpha);
+      double b=s.params.at(SIRParam::LatentBeta);
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
+      return {true, std::unique_ptr<GammaDistribution<RandGen>>(
+        new GammaDistribution<RandGen>(a, b, te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
+      return {false, std::unique_ptr<Dist>(nullptr)};
+    }
+  }
+
+  virtual void Fire(UserState& s, Local& lm, double t0,
+      RandGen& rng) override {
+    //SMVLOG(BOOST_LOG_TRIVIAL(trace) << "Fire recover " << lm);
+    lm.template Move<0, 0>(0, 1, 1);
+  }
+};
+
+
+// Now make specific transitions.
+class InfectiousExponential : public SIRTransition
+{
+  virtual std::pair<bool, std::unique_ptr<Dist>>
+  Enabled(const UserState& s, const Local& lm,
+    double te, double t0, RandGen& rng) override {
+    int64_t I=lm.template Length<0>(0);
+    if (I>0) {
+      double rate=I*s.params.at(SIRParam::Latent);
       //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
       return {true, std::unique_ptr<ExpDist>(
         new ExpDist(rate, te))};
@@ -174,6 +229,33 @@ class Infectious : public SIRTransition
 
 // Now make specific transitions.
 class Recover : public SIRTransition
+{
+  virtual std::pair<bool, std::unique_ptr<Dist>>
+  Enabled(const UserState& s, const Local& lm,
+    double te, double t0, RandGen& rng) override {
+    int64_t I=lm.template Length<0>(0);
+    if (I>0) {
+      double a=s.params.at(SIRParam::GammaAlpha);
+      double b=s.params.at(SIRParam::GammaBeta);
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
+      return {true, std::unique_ptr<GammaDistribution<RandGen>>(
+        new GammaDistribution<RandGen>(a, b, te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
+      return {false, std::unique_ptr<Dist>(nullptr)};
+    }
+  }
+
+  virtual void Fire(UserState& s, Local& lm, double t0,
+      RandGen& rng) override {
+    //SMVLOG(BOOST_LOG_TRIVIAL(trace) << "Fire recover " << lm);
+    lm.template Move<0, 0>(0, 1, 1);
+  }
+};
+
+
+// Now make specific transitions.
+class RecoverExponential : public SIRTransition
 {
   virtual std::pair<bool, std::unique_ptr<Dist>>
   Enabled(const UserState& s, const Local& lm,
@@ -204,7 +286,8 @@ using SIRGSPN=
 /*! SIR infection on an all-to-all graph of uncolored tokens.
  */
 SIRGSPN
-BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
+BuildSystem(int64_t individual_cnt, const std::map<ModelOptions,bool>& opts,
+  int block_cnt, int row_cnt)
 {
   BuildGraph<SIRGSPN> bg;
   using Edge=BuildGraph<SIRGSPN>::PlaceEdge;
@@ -227,13 +310,25 @@ BuildSystem(int64_t individual_cnt, int block_cnt, int row_cnt)
   enum : int64_t { none, infect0, infect1, infect2, infectious, recover };
 
   for (int64_t ind_idx=0; ind_idx<individual_cnt; ++ind_idx) {
+    std::unique_ptr<SIRTransition> infectious;
+    std::unique_ptr<SIRTransition> recover;
+    if (opts.at(ModelOptions::ExponentialTransitions)) {
+      infectious.reset(new InfectiousExponential());
+      recover.reset(new RecoverExponential());
+    } else if (opts.at(ModelOptions::DoubleGamma)) {
+      infectious.reset(new InfectiousGamma());
+      recover.reset(new Recover());
+    } else {
+      infectious.reset(new Infectious());
+      recover.reset(new Recover());
+    }
     bg.AddTransition({ind_idx, ind_idx, TransitionType::infectious},
       {Edge{{ind_idx, location, e}, -1}, Edge{{ind_idx, location, i}, 1}},
-      std::unique_ptr<SIRTransition>(new Infectious())
+      std::move(infectious)
       );
     bg.AddTransition({ind_idx, ind_idx, TransitionType::recover},
       {Edge{{ind_idx, location, i}, -1}, Edge{{ind_idx, location, r}, 1}},
-      std::unique_ptr<SIRTransition>(new Recover())
+      std::move(recover)
       );
   }
 
@@ -362,11 +457,11 @@ struct SEIROutput
 int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     const std::vector<TypedParameter<SIRParam>>& parameters,
     std::shared_ptr<PenTrajectoryObserver> observer,
-    RandGen& rng, int block_cnt, int row_cnt)
+    RandGen& rng, std::map<ModelOptions,bool> opts, int block_cnt, int row_cnt)
 {
   int64_t individual_cnt=std::accumulate(seir_cnt.begin(), seir_cnt.end(),
     int64_t{0});
-  auto gspn=BuildSystem(individual_cnt, block_cnt, row_cnt);
+  auto gspn=BuildSystem(individual_cnt, opts, block_cnt, row_cnt);
 
   // Marking of the net.
   static_assert(std::is_same<int64_t,SIRGSPN::PlaceKey>::value,
@@ -374,9 +469,18 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   using Mark=Marking<SIRGSPN::PlaceKey, Uncolored<IndividualToken>>;
   using SIRState=GSPNState<Mark,SIRGSPN::TransitionKey,WithParams>;
 
+  int64_t pen_cnt=2*block_cnt*row_cnt;
+  int64_t animals_per_pen=individual_cnt/pen_cnt;
+  
   SIRState state;
+  std::set<SIRParam> scale_param{ SIRParam::Beta0, SIRParam::Beta1,
+      SIRParam::Beta2, SIRParam::RiderInfect };
   for (auto& cp : parameters) {
-    state.user.params[cp.kind]=cp.value;
+    double value=cp.value;
+    if (scale_param.find(cp.kind)!=scale_param.end()) {
+      value=cp.value/animals_per_pen;
+    }
+    state.user.params[cp.kind]=value;
   }
 
   const int64_t location=0;
@@ -387,8 +491,6 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     }
   }
   // The goal is to put all latent and infecteds in the same pen.
-  int64_t pen_cnt=2*block_cnt*row_cnt;
-  int64_t animals_per_pen=individual_cnt/pen_cnt;
   int64_t infected_pen=smv::uniform_index(rng, pen_cnt);
   int64_t first_in_pen=animals_per_pen*infected_pen;
   for (int reinit=1; reinit<4; ++reinit) {
