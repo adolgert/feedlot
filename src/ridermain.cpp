@@ -19,11 +19,10 @@ int main(int argc, char *argv[]) {
   int64_t exposed_cnt=1;
   int64_t infected_cnt=0;
   int64_t recovered_cnt=0;
-  bool use_rider=true;
-  bool infect_other_pens=false;
 
   int64_t block_cnt=2;
   int64_t row_cnt=8;
+  int64_t disconnected_pens=0;
 
   int run_cnt=1;
   size_t rand_seed=1;
@@ -84,17 +83,30 @@ int main(int argc, char *argv[]) {
     ("penrows",
       po::value<int64_t>(&row_cnt),
       "number of rows within a block of pens")
+    ("disconnected",
+      po::value<int64_t>(&disconnected_pens),
+      "How many pens to make with no adjacency.")
     ("seed",
       po::value<size_t>(&rand_seed)->default_value(rand_seed),
       "seed for random number generator")
     ("endtime",
       po::value<double>(&end_time)->default_value(end_time),
       "how many years to run")
+    ("exponential",
+      po::value<bool>(&model_opts[ModelOptions::ExponentialTransitions])->
+        default_value(model_opts[ModelOptions::ExponentialTransitions]),
+      "Use exponentially-distributed latent and infectious periods")
+    ("doublegamma",
+      po::value<bool>(&model_opts[ModelOptions::DoubleGamma])->
+        default_value(model_opts[ModelOptions::DoubleGamma]),
+      "Use gamma-distributed latent and infectious periods")
     ("rider",
-      po::value<bool>(&use_rider)->default_value(use_rider),
+      po::value<bool>(&model_opts[ModelOptions::Rider])->default_value(
+        model_opts[ModelOptions::Rider]),
       "Whether a rider carries infection to next pens")
     ("otherpens",
-      po::value<bool>(&infect_other_pens)->default_value(infect_other_pens),
+      po::value<bool>(&model_opts[ModelOptions::AllToAllInfection])->
+      default_value(model_opts[ModelOptions::AllToAllInfection]),
       "Whether there is a background infection between any two pens.")
     ("datafile",
       po::value<std::string>(&data_file)->default_value(data_file),
@@ -159,6 +171,13 @@ int main(int argc, char *argv[]) {
     BOOST_LOG_TRIVIAL(info)<<showp.name<<" "<<showp.value;
   }
 
+  PenContactGraph pen_graph;
+  if (disconnected_pens>0) {
+    pen_graph=DisconnectedPens(disconnected_pens);
+  } else {
+    pen_graph=BlockStructure(block_cnt, row_cnt);
+  }
+
   HDFFile file(data_file);
   if (!file.Open(!save_file)) {
     BOOST_LOG_TRIVIAL(error)<<"could not open output file: "<<data_file;
@@ -171,8 +190,8 @@ int main(int argc, char *argv[]) {
     observer=std::make_shared<PenTrajectorySave>(
       static_cast<size_t>(individual_cnt));
 
-    SEIR_run(end_time, seir_init, parameters, observer, rng, block_cnt, row_cnt,
-        use_rider, infect_other_pens);
+    SEIR_run(end_time, seir_init, parameters, model_opts, pen_graph,
+        observer, rng);
     file.SavePenTrajectory(parameters, single_seed, idx, observer->Trajectory(),
       observer->PenInitial());
   };

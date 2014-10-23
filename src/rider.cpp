@@ -195,9 +195,7 @@ public:
 // Now make specific transitions.
 class InfectiousExponential : public SIRTransition
 {
-  int64_t individual_;
 public:
-  InfectiousExponential(int64_t individual) : individual_(individual) {}
   virtual std::pair<bool, std::unique_ptr<Dist>>
   Enabled(const UserState& s, const Local& lm,
     double te, double t0, RandGen& rng) override {
@@ -507,7 +505,7 @@ using SIRGSPN=
 /*! SIR infection on an all-to-all graph of uncolored tokens.
  */
 void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
-    const PenContactGraph& g, bool infect_other_pens)
+    const PenContactGraph& g, const std::map<ModelOptions,bool>& opts)
 {
   using Edge=BuildGraph<SIRGSPN>::PlaceEdge;
 
@@ -543,17 +541,29 @@ void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
   // 2N
   for (int64_t ind_idx=0; ind_idx<individual_cnt; ++ind_idx) {
     int64_t ind_pen=pen_of(ind_idx, per_pen);
+    std::unique_ptr<SIRTransition> infectious;
+    std::unique_ptr<SIRTransition> recover;
+    if (opts.at(ModelOptions::ExponentialTransitions)) {
+      infectious.reset(new InfectiousExponential());
+      recover.reset(new RecoverExponential());
+    } else if (opts.at(ModelOptions::DoubleGamma)) {
+      infectious.reset(new InfectiousGamma<SIRTransition>());
+      recover.reset(new Recover<SIRTransition>());
+    } else {
+      infectious.reset(new Infectious<SIRTransition>());
+      recover.reset(new Recover<SIRTransition>());
+    }
     bg.AddTransition({ind_idx, ind_idx, TransitionType::infectious},
       {Edge{{ind_idx, location, e}, -1},
        Edge{{ind_pen, pen_summary, e},-1}, Edge{{ind_idx, location, i}, 1},
        Edge{{ind_pen, pen_summary, i}, 1}},
-      std::unique_ptr<SIRTransition>(new Infectious<SIRTransition>())
+      std::move(infectious)
       );
     bg.AddTransition({ind_idx, ind_idx, TransitionType::recover},
       {Edge{{ind_idx, location, i}, -1},
        Edge{{ind_pen, pen_summary, i}, -1},
        Edge{{ind_pen, pen_summary, r}, 1}},
-      std::unique_ptr<SIRTransition>(new Recover<SIRTransition>())
+      std::move(recover)
       );
   }
 
@@ -591,7 +601,7 @@ void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
             );
         }
       } else {
-        if (infect_other_pens) {
+        if (opts.at(ModelOptions::AllToAllInfection)) {
           int64_t src_base=d_idx*per_pen;
           for (int64_t src_idx=0; src_idx<per_pen; ++src_idx) {
             int64_t src=src_base+src_idx;
@@ -855,13 +865,13 @@ struct SEIROutput
 
 int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     const std::vector<TypedParameter<SIRParam>>& parameters,
+    std::map<ModelOptions,bool> opts,
+    const PenContactGraph& pen_contact,
     std::shared_ptr<PenTrajectoryObserver> observer,
-    RandGen& rng, int block_cnt, int row_cnt, bool use_rider,
-    bool infect_other_pens)
+    RandGen& rng)
 {
   int64_t individual_cnt=std::accumulate(seir_cnt.begin(), seir_cnt.end(),
     int64_t{0});
-  auto pen_contact=BlockStructure(block_cnt, row_cnt);
   // The goal is to put all latent and infecteds in the same pen.
   int64_t pen_cnt=num_vertices(pen_contact);
   BOOST_LOG_TRIVIAL(info)<<pen_cnt<<" vertices in pen contact graph";
@@ -874,7 +884,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   int64_t rider_places=(P+1)*2;
   int64_t individual_transitions=2*N; // infectious and recover.
   int64_t animal_infect=(P+CE*2)*animals_per_pen;
-  if (infect_other_pens) {
+  if (opts[ModelOptions::AllToAllInfection]) {
     animal_infect=P*P*animals_per_pen;
   }
   int64_t rider_infect=P+N; // infect and infected by.
@@ -883,7 +893,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   int64_t guess_cnt=animal_places+rider_places+individual_transitions
       +animal_infect+rider_infect+rider_move+rider_recover;
   SIRGSPN gspn(guess_cnt);
-  BuildSystem(gspn, individual_cnt, pen_contact, infect_other_pens);
+  BuildSystem(gspn, individual_cnt, pen_contact, opts);
   BOOST_LOG_TRIVIAL(debug)<<"GSPN vertex count "<<gspn.VerticesUsed()
       << " guess " << guess_cnt;
 
@@ -933,7 +943,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     }
   }
 
-  if (use_rider) {
+  if (opts[ModelOptions::Rider]) {
     // The rider starts outside the pens.
     auto rider_id=gspn.PlaceVertex({0, 2, 0});
     Add<0>(state.marking, rider_id, IndividualToken{});

@@ -21,6 +21,10 @@ int main(int argc, char *argv[]) {
   int64_t infected_cnt=0;
   int64_t recovered_cnt=0;
 
+  int64_t block_cnt=2;
+  int64_t row_cnt=8;
+  int64_t disconnected_pens=0;
+
   int run_cnt=1;
   size_t rand_seed=1;
   // Time is in years.
@@ -66,6 +70,15 @@ int main(int argc, char *argv[]) {
     ("recovered,r",
       po::value<int64_t>(&recovered_cnt),
       "number of recovered")
+    ("penblocks",
+      po::value<int64_t>(&block_cnt),
+      "number of city blocks of pens")
+    ("penrows",
+      po::value<int64_t>(&row_cnt),
+      "number of rows within a block of pens")
+    ("disconnected",
+      po::value<int64_t>(&disconnected_pens),
+      "How many pens to make with no adjacency.")
     ("seed",
       po::value<size_t>(&rand_seed)->default_value(rand_seed),
       "seed for random number generator")
@@ -149,6 +162,13 @@ int main(int argc, char *argv[]) {
     BOOST_LOG_TRIVIAL(info)<<showp.name<<" "<<showp.value;
   }
 
+  PenContactGraph pen_graph;
+  if (disconnected_pens>0) {
+    pen_graph=DisconnectedPens(disconnected_pens);
+  } else {
+    pen_graph=BlockStructure(block_cnt, row_cnt);
+  }
+
   HDFFile file(data_file);
   if (!file.Open(!save_file)) {
     BOOST_LOG_TRIVIAL(error)<<"could not open output file: "<<data_file;
@@ -161,7 +181,8 @@ int main(int argc, char *argv[]) {
     observer=std::make_shared<PenTrajectorySave>(
       static_cast<size_t>(individual_cnt));
 
-    SEIR_run(end_time, seir_init, parameters, observer, rng, model_opts, 2, 4);
+    SEIR_run(end_time, seir_init, parameters, model_opts, pen_graph,
+        observer, rng);
     file.SavePenTrajectory(parameters, single_seed, idx, observer->Trajectory(),
       observer->PenInitial());
   };

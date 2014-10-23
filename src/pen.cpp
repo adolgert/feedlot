@@ -21,6 +21,10 @@ PenContactGraph BlockStructure(int block_cnt, int row_cnt) {
   return g;
 }
 
+PenContactGraph DisconnectedPens(int pen_cnt) {
+  return PenContactGraph(pen_cnt);
+}
+
 bool AdjacentPens(int i, int j, const PenContactGraph& g) {
   using AdjIter=boost::graph_traits<PenContactGraph>::adjacency_iterator;
   AdjIter start, end;

@@ -287,13 +287,12 @@ using SIRGSPN=
  */
 SIRGSPN
 BuildSystem(int64_t individual_cnt, const std::map<ModelOptions,bool>& opts,
-  int block_cnt, int row_cnt)
+  const PenContactGraph& pen_graph)
 {
   BuildGraph<SIRGSPN> bg;
   using Edge=BuildGraph<SIRGSPN>::PlaceEdge;
 
-  auto g=BlockStructure(block_cnt, row_cnt);
-  auto pen_cnt=num_vertices(g);
+  auto pen_cnt=num_vertices(pen_graph);
   int64_t per_pen=individual_cnt/pen_cnt;
   assert((individual_cnt % per_pen)==0);
   BOOST_LOG_TRIVIAL(info) << "individuals "<<individual_cnt<<" pens "<<pen_cnt
@@ -343,7 +342,7 @@ BuildSystem(int64_t individual_cnt, const std::map<ModelOptions,bool>& opts,
                 Edge{{d_idx, location, e}, 1}, Edge{{s_idx, location, i}, 1}},
             std::unique_ptr<SIRTransition>(new InfectPen())
             );
-        } else if (AdjacentPens(pen_s, pen_d, g)) {
+        } else if (AdjacentPens(pen_s, pen_d, pen_graph)) {
           bg.AddTransition({d_idx, s_idx, TransitionType::infect1},
             {Edge{{d_idx, location, s}, -1}, Edge{{s_idx, location, i}, -1}, 
                 Edge{{d_idx, location, e}, 1}, Edge{{s_idx, location, i}, 1}},
@@ -456,12 +455,14 @@ struct SEIROutput
 
 int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     const std::vector<TypedParameter<SIRParam>>& parameters,
+    std::map<ModelOptions,bool> opts,
+    const PenContactGraph& pen_graph,
     std::shared_ptr<PenTrajectoryObserver> observer,
-    RandGen& rng, std::map<ModelOptions,bool> opts, int block_cnt, int row_cnt)
+    RandGen& rng)
 {
   int64_t individual_cnt=std::accumulate(seir_cnt.begin(), seir_cnt.end(),
     int64_t{0});
-  auto gspn=BuildSystem(individual_cnt, opts, block_cnt, row_cnt);
+  auto gspn=BuildSystem(individual_cnt, opts, pen_graph);
 
   // Marking of the net.
   static_assert(std::is_same<int64_t,SIRGSPN::PlaceKey>::value,
@@ -469,9 +470,9 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   using Mark=Marking<SIRGSPN::PlaceKey, Uncolored<IndividualToken>>;
   using SIRState=GSPNState<Mark,SIRGSPN::TransitionKey,WithParams>;
 
-  int64_t pen_cnt=2*block_cnt*row_cnt;
+  int64_t pen_cnt=num_vertices(pen_graph);
   int64_t animals_per_pen=individual_cnt/pen_cnt;
-  
+
   SIRState state;
   std::set<SIRParam> scale_param{ SIRParam::Beta0, SIRParam::Beta1,
       SIRParam::Beta2, SIRParam::RiderInfect };

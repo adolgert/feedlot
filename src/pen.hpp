@@ -14,10 +14,8 @@ using PenContactGraph=boost::adjacency_list<boost::vecS,
  *  Returns block_cnt*row_cnt*2 pens.
  */
 PenContactGraph BlockStructure(int block_cnt, int row_cnt);
-
+PenContactGraph DisconnectedPens(int pen_cnt);
 bool AdjacentPens(int i, int j, const PenContactGraph& g);
-
 int64_t pen_of(int64_t individual, int64_t per_pen);
-
 
 #endif
