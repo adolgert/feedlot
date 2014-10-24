@@ -88,6 +88,34 @@ def total_trajectory(h5f, traj_dset_name):
     return seir, times
 
 
+class total_infected(object):
+    def __init__(self, cnt):
+        self.data=np.zeros(cnt, np.int)
+        self.idx=0
+
+    def observe(self, total_trajectory, times):
+        self.data[self.idx]=total_trajectory[-1,3]
+
+
+class time_to_recovery(object):
+    def __init__(self, cnt):
+        self.data=np.zeros(cnt, np.float64)
+        self.idx=0
+
+    def observe(self, total_trajectory, times):
+        self.data[self.idx]=times[-1]
+
+
+def summary_of_ensemble(f):
+    cnt=len(trajectories(f))
+    summaries=[total_infected(cnt), time_to_recovery(cnt)]
+    for trajectory_name in trajectories(f):
+        total, times=total_trajectory(f, trajectory_name)
+        for s in summaries:
+            s.observe(total, times)
+    return summaries
+
+
 def foreach_trajectory(f, func):
     trajectories=f['/trajectory']
     for trajectory_name in trajectories:
