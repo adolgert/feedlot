@@ -138,7 +138,7 @@ bool HDFFile::WriteExecutableData(const std::map<std::string,std::string>& compi
     for (auto& v : opt.value) {
       optstring << "<value>" << v << "</value>";
     }
-    optstring <<"</values></options>";
+    optstring <<"</values></option>";
   }
   optstring << "</options>";
   

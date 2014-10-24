@@ -637,9 +637,17 @@ void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
     bg.AddTransition({rp_idx, next_pen, TransitionType::movers},
       {Edge{pen_s, -1}, Edge{pen_s_n, 1}},
       std::unique_ptr<SIRTransition>(new MoveRider()));
-    bg.AddTransition({rp_idx, next_pen, TransitionType::moveri},
-      {Edge{pen_i, -1}, Edge{pen_i_n, 1}},
-      std::unique_ptr<SIRTransition>(new MoveRider()));
+    // The last pen spot for the rider connects to a susceptible overnight
+    // location. Don't put the horse away wet. Don't infect the next day.
+    if (rp_idx<pen_cnt-1) {
+      bg.AddTransition({rp_idx, next_pen, TransitionType::moveri},
+        {Edge{pen_i, -1}, Edge{pen_i_n, 1}},
+        std::unique_ptr<SIRTransition>(new MoveRider()));
+    } else {
+      bg.AddTransition({rp_idx, next_pen, TransitionType::moveri},
+        {Edge{pen_i, -1}, Edge{pen_s_n, 1}},
+        std::unique_ptr<SIRTransition>(new MoveRider()));
+    }
     bg.AddTransition({rp_idx, rp_idx, TransitionType::recoverr},
       {Edge{pen_i, -1}, Edge{pen_s, 1}},
       std::unique_ptr<SIRTransition>(new RecoverRider()));
