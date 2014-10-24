@@ -16,7 +16,6 @@ struct TrajectoryEntry {
 };
 
 class TrajectoryObserver {
-public:
   virtual void Step(TrajectoryEntry sirt)=0;
   virtual const std::vector<TrajectoryEntry>& Trajectory() const =0;
 };
@@ -40,8 +39,9 @@ public:
 class TrajectorySave : public TrajectoryObserver
 {
   std::vector<TrajectoryEntry> trajectory_;
+  int64_t cnt{0};
  public:
-  TrajectorySave();
+  TrajectorySave(int64_t cnt);
   virtual ~TrajectorySave();
   virtual void Step(TrajectoryEntry seirt) override;
   virtual const std::vector<TrajectoryEntry>& Trajectory() const;

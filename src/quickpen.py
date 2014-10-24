@@ -95,6 +95,7 @@ class total_infected(object):
 
     def observe(self, total_trajectory, times):
         self.data[self.idx]=total_trajectory[-1,3]
+        self.idx+=1
 
 
 class time_to_recovery(object):
@@ -104,12 +105,31 @@ class time_to_recovery(object):
 
     def observe(self, total_trajectory, times):
         self.data[self.idx]=times[-1]
+        self.idx+=1
 
+class all_states(object):
+    def __init__(self, cnt):
+        self.seir_=list()
+        self.t=list()
 
-def summary_of_ensemble(f):
+    def observe(self, total_trajectory, times):
+        self.seir_.append(total_trajectory)
+        self.t.append(times)
+
+    def seir(self):
+        return np.vstack(self.seir_)
+
+    def times(self):
+        return np.hstack(self.t)
+
+def summary_of_ensemble(f, max_cnt):
     cnt=len(trajectories(f))
-    summaries=[total_infected(cnt), time_to_recovery(cnt)]
-    for trajectory_name in trajectories(f):
+    if max_cnt>cnt or max_cnt<1:
+        max_cnt=cnt
+    summaries=[total_infected(max_cnt), time_to_recovery(max_cnt),
+        all_states(max_cnt)]
+    for trajectory_name in trajectories(f)[0:max_cnt]:
+        logger.debug(trajectory_name)
         total, times=total_trajectory(f, trajectory_name)
         for s in summaries:
             s.observe(total, times)

@@ -1,8 +1,16 @@
 import re
-import xml.etree.ElementTree as ET
-import h5py
-from default_parser import DefaultArgumentParser
+import math
 import logging
+import xml.etree.ElementTree as ET
+import numpy as np
+import scipy.stats
+import h5py
+import matplotlib.pyplot as plt
+import quickpen
+import penplot
+from default_parser import DefaultArgumentParser
+
+logger=logging.getLogger(__file__)
 
 def metadata(h5f):
     info={}
@@ -64,12 +72,29 @@ def write_report(info, outfile):
     f.write(text)
 
 
+def single_trajectory_small_multiples(h5f):
+    dsetname=quickpen.trajectories(h5f)[0]
+    tr,times,obs=quickpen.per_pen_trajectory(h5f, dsetname)
+    penplot.small_multiples(tr, times, obs, 4)
+
+def summaries(h5f):
+    aggregate=quickpen.summary_of_ensemble(h5f, 50)
+    penplot.total_infected_plot(aggregate[0].data)
+    penplot.end_time_plot(aggregate[1].data)
+    all_states_obj=aggregate[2]
+    print(type(all_states_obj))
+    seir=all_states_obj.seir()
+    logger.debug("seir shape {0}".format(seir.shape))
+    times=all_states_obj.times()
+    logger.debug("times shape {0}".format(times.shape))
+    penplot.trajectory_density_plot(seir[:,1], times, "Exposed")
+    penplot.trajectory_density_plot(seir[:,2], times, "Infected")
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser=DefaultArgumentParser(description="Quick look at an H5 file")
     parser.add_argument("--file", dest="file", action="store",
         default="rider.h5", help="data file to read")
-
 
     args=parser.parse_args()
 

@@ -26,17 +26,66 @@ class HDFFile {
   ~HDFFile();
   bool Open(bool truncate=true);
   bool Close();
+
+  template<typename TrajType>
+  bool SaveTotalTimes(int seed, int idx,
+    const TrajType& trajectory) const;
+
   template<typename Params>
   bool SaveTrajectory(const Params& params,
     int seed, int idx, const TrajectoryType& trajectory) const;
+
   template<typename Params>
   bool SavePenTrajectory(const Params& params,
     int seed, int idx, const std::vector<PenTrajectory>& trajectory,
     const std::vector<TrajectoryEntry>& initial) const;
+
   bool WriteExecutableData(const std::map<std::string,std::string>& compile,
     const boost::program_options::basic_parsed_options<char>& cmdline,
     const std::vector<int64_t>& initial_values) const;
 };
+
+
+template<typename TrajType>
+bool HDFFile::SaveTotalTimes(int seed, int idx,
+    const TrajType& trajectory) const {
+  std::unique_lock<std::mutex> only_me(single_writer_);
+  hsize_t dims[1];
+  dims[0]=trajectory.size();
+  hid_t dataspace_id=H5Screate_simple(1, dims, NULL);
+
+  std::stringstream dset_name;
+  dset_name << "dset" << seed << "-" << idx << "/seirtotaltimes";
+  hid_t dataset_id=H5Dcreate2(trajectory_group_, dset_name.str().c_str(),
+    H5T_IEEE_F64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  if (dataset_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not make HD5 dataset "<<dataset_id;
+    herr_t space_status=H5Sclose(dataspace_id);
+    return false;
+  }
+
+  if (trajectory.size()>0) {
+    std::vector<int64_t> vals(dims[0]);
+    for (size_t i=0; i<dims[0]; ++i) {
+      vals[i]=trajectory[i].t;
+    }
+    herr_t write_status=H5Dwrite(dataset_id, H5T_STD_I64LE,
+      H5S_ALL, H5S_ALL, H5P_DEFAULT, &vals[0]);
+
+    if (write_status<0) {
+      BOOST_LOG_TRIVIAL(error)<<"Could not write HD5 dataset "<<write_status;
+      herr_t space_status=H5Sclose(dataspace_id);
+      herr_t close_status=H5Dclose(dataset_id);
+      return false;
+    }
+  } else {
+    BOOST_LOG_TRIVIAL(warning)<<"There was no trajectory to write.";
+  }
+
+  herr_t close_status=H5Dclose(dataset_id);
+  herr_t space_status=H5Sclose(dataspace_id);
+  return true;
+}
 
 
 template<typename Params>
@@ -44,65 +93,34 @@ bool HDFFile::SaveTrajectory(const Params& params,
     int seed, int idx, const TrajectoryType& trajectory) const {
   std::unique_lock<std::mutex> only_me(single_writer_);
   assert(open_);
-  hsize_t dims[1];
+  hsize_t dims[2];
   dims[0]=trajectory.size();
-  hid_t dataspace_id=H5Screate_simple(1, dims, NULL);
-
-  // Disk storage types are defined exactly.
-  hid_t trajectory_type=H5Tcreate(H5T_COMPOUND, sizeof(TrajectoryEntry));
-  H5Tinsert(trajectory_type, "s", HOFFSET(TrajectoryEntry, s),
-      H5T_STD_I64LE);
-  H5Tinsert(trajectory_type, "i", HOFFSET(TrajectoryEntry, i),
-      H5T_STD_I64LE);
-  H5Tinsert(trajectory_type, "r", HOFFSET(TrajectoryEntry, r),
-      H5T_STD_I64LE);
-  H5Tinsert(trajectory_type, "t", HOFFSET(TrajectoryEntry, t),
-      H5T_IEEE_F64LE);
-  if (trajectory_type<0) {
-    BOOST_LOG_TRIVIAL(error)<<"Could not make HD5 type "<<trajectory_type;
-    herr_t space_status=H5Sclose(dataspace_id);
-    return false;
-  }
-
-  // When writing, ask library to translate from native type (H5T_NATIVE_LONG)
-  // to disk storage type (H5T_STD_I64LE) if necessary.
-  hid_t write_trajectory_type=H5Tcreate(H5T_COMPOUND, sizeof(TrajectoryEntry));
-  H5Tinsert(write_trajectory_type, "s", HOFFSET(TrajectoryEntry, s),
-      H5T_NATIVE_LONG);
-  H5Tinsert(write_trajectory_type, "i", HOFFSET(TrajectoryEntry, i),
-      H5T_NATIVE_LONG);
-  H5Tinsert(write_trajectory_type, "r", HOFFSET(TrajectoryEntry, r),
-      H5T_NATIVE_LONG);
-  H5Tinsert(write_trajectory_type, "t", HOFFSET(TrajectoryEntry, t),
-      H5T_NATIVE_DOUBLE);
-  if (write_trajectory_type<0) {
-    BOOST_LOG_TRIVIAL(error)<<"Could not make HD5 native type "
-      <<write_trajectory_type;
-    herr_t trajt_status=H5Tclose(trajectory_type);
-    herr_t space_status=H5Sclose(dataspace_id);
-    return false;
-  }
+  dims[1]=4;
+  hid_t dataspace_id=H5Screate_simple(2, dims, NULL);
 
   std::stringstream dset_name;
-  dset_name << "dset" << seed << "-" << idx;
+  dset_name << "dset" << seed << "-" << idx << "/seirtotal";
   hid_t dataset_id=H5Dcreate2(trajectory_group_, dset_name.str().c_str(),
-    write_trajectory_type, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+    H5T_STD_I64LE, dataspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   if (dataset_id<0) {
     BOOST_LOG_TRIVIAL(error)<<"Could not make HD5 dataset "<<dataset_id;
-    herr_t trajt_status=H5Tclose(trajectory_type);
-    herr_t wtrajt_status=H5Tclose(write_trajectory_type);
     herr_t space_status=H5Sclose(dataspace_id);
     return false;
   }
 
   if (trajectory.size()>0) {
-    herr_t write_status=H5Dwrite(dataset_id, write_trajectory_type,
-      H5S_ALL, H5S_ALL, H5P_DEFAULT, &trajectory[0]);
+    std::vector<int64_t> vals(dims[0]*dims[1]);
+    for (size_t i=0; i<dims[0]; ++i) {
+      vals[4*i+0]=trajectory[i].s;
+      vals[4*i+1]=trajectory[i].e;
+      vals[4*i+2]=trajectory[i].i;
+      vals[4*i+3]=trajectory[i].r;
+    }
+    herr_t write_status=H5Dwrite(dataset_id, H5T_STD_I64LE,
+      H5S_ALL, H5S_ALL, H5P_DEFAULT, &vals[0]);
 
     if (write_status<0) {
       BOOST_LOG_TRIVIAL(error)<<"Could not write HD5 dataset "<<write_status;
-      herr_t trajt_status=H5Tclose(trajectory_type);
-      herr_t wtrajt_status=H5Tclose(write_trajectory_type);
       herr_t space_status=H5Sclose(dataspace_id);
       herr_t close_status=H5Dclose(dataset_id);
       return false;
@@ -124,8 +142,6 @@ bool HDFFile::SaveTrajectory(const Params& params,
   }
   H5Sclose(dspace_id);
 
-  herr_t wtrajt_status=H5Tclose(write_trajectory_type);
-  herr_t trajt_status=H5Tclose(trajectory_type);
   herr_t close_status=H5Dclose(dataset_id);
   herr_t space_status=H5Sclose(dataspace_id);
   return true;
