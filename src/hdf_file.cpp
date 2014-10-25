@@ -198,11 +198,12 @@ bool HDFFile::WriteUUIDTo(hid_t group) const {
   std::stringstream uuidstring;
   uuidstring << tag;
 
-  hsize_t odims=8;
+  hsize_t odims=1;
   hid_t ospace_id=H5Screate_simple(1, &odims, NULL);
 
-  hid_t strtype=H5Tcopy(H5T_STD_U8LE);
-  herr_t strstatus=H5Tset_size(strtype, tag.size());
+  hid_t strtype=H5Tcopy(H5T_C_S1);
+  BOOST_LOG_TRIVIAL(debug)<<"uuidstring size " <<uuidstring.str().size();
+  herr_t strstatus=H5Tset_size(strtype, uuidstring.str().size());
   if (strstatus<0) {
     BOOST_LOG_TRIVIAL(error)
       <<"Could not create string for executable data.";
@@ -211,7 +212,7 @@ bool HDFFile::WriteUUIDTo(hid_t group) const {
 
   hid_t attr0_id=H5Acreate2(group, "uuid", strtype,
     ospace_id, H5P_DEFAULT, H5P_DEFAULT);
-  herr_t atstatus=H5Awrite(attr0_id, strtype, &tag);
+  herr_t atstatus=H5Awrite(attr0_id, strtype, uuidstring.str().c_str());
   if (atstatus<0) {
     BOOST_LOG_TRIVIAL(error)<<"Could not write attribute "<<"uuid";
     return false;

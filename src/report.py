@@ -36,6 +36,10 @@ def metadata(h5f):
         commandline_options[name]=", ".join(values)
 
     info['CommandlineOptions']=commandline_options
+    print(type(attrs['uuid']))
+    print(attrs['uuid'])
+    print(attrs['uuid'].shape)
+    info['UUID']=attrs['uuid'].tostring().decode("utf-8")
     return info
 
 
@@ -51,6 +55,7 @@ def write_report(info, outfile):
     provenance_table.append("Compile time & {0} \\\\".format(info["CompileTime"]))
     provenance_table.append("Code repository & \\href{{{0}}}{{{1}}} \\\\".format(info["RepoUrl"], info["RepoEnglish"]))
     provenance_table.append("Initial values & {0} \\\\".format(info["InitialValues"]))
+    provenance_table.append("Unique Tag & {0} \\\\".format(info["UUID"]))
     provenance_table.append("\\end{tabular}")
     info["CodeTraitsTable"]="\n".join(provenance_table)
 
@@ -100,8 +105,9 @@ if __name__ == "__main__":
 
     filename=args.file
     f=h5py.File(filename, "r")
-    info={"Title" : filename}
+    info=dict()
     info.update(metadata(f))
+    info["Title"]="{0}--{1}".format(filename, info["UUID"][0:5])
     outfile="report.tex"
     write_report(info, outfile)
     # if not parser.any_function():
