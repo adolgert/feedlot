@@ -2,17 +2,17 @@
 #include "trajectory.hpp"
 
 
-TrajectorySave::TrajectorySave(int64_t cnt) : trajectory_(cnt) {}
+TrajectorySave::TrajectorySave(int64_t cnt) : trajectory_(cnt), cnt_{0} {}
 TrajectorySave::~TrajectorySave() {}
 void TrajectorySave::Step(TrajectoryEntry seirt) {
   if (cnt_==trajectory_.size()) {
     trajectory_.resize(2*cnt_);
   }
-  trajectory_[cnt]=seirt;
-  ++cnt;
+  trajectory_[cnt_]=seirt;
+  ++cnt_;
 }
-const std::vector<TrajectoryEntry>& TrajectorySave::Trajectory() const {
-  trajectory_.resize(cnt);
+const std::vector<TrajectoryEntry>& TrajectorySave::Trajectory() {
+  trajectory_.resize(cnt_);
   return trajectory_;
 }
 
@@ -38,7 +38,7 @@ void PercentTrajectorySave::Step(TrajectoryEntry seirt) {
 }
 
 const std::vector<TrajectoryEntry>&
-PercentTrajectorySave::Trajectory() const {
+PercentTrajectorySave::Trajectory() {
   return trajectory_;
 }
 

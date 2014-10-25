@@ -7,6 +7,9 @@
 #include <map>
 #include <array>
 #include "boost/program_options.hpp"
+#include "boost/uuid/uuid.hpp"
+#include "boost/uuid/uuid_generators.hpp"
+#include "boost/uuid/uuid_io.hpp"
 #include "trajectory.hpp"
 #include "parameter.hpp"
 #include "hdf5.h"
@@ -43,6 +46,9 @@ class HDFFile {
   bool WriteExecutableData(const std::map<std::string,std::string>& compile,
     const boost::program_options::basic_parsed_options<char>& cmdline,
     const std::vector<int64_t>& initial_values) const;
+
+ private:
+  bool WriteUUIDTo(hid_t group) const;
 };
 
 
@@ -260,6 +266,9 @@ bool HDFFile::SavePenTrajectory(const Params& params,
     }
     H5Aclose(attr0_id);
   }
+
+  WriteUUIDTo(dataset_group_id);
+
   H5Sclose(dspace_id);
 
   // This is the set of initial pen values.

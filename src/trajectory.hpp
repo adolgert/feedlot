@@ -17,7 +17,7 @@ struct TrajectoryEntry {
 
 class TrajectoryObserver {
   virtual void Step(TrajectoryEntry sirt)=0;
-  virtual const std::vector<TrajectoryEntry>& Trajectory() const =0;
+  virtual const std::vector<TrajectoryEntry>& Trajectory() =0;
 };
 
 struct PenTrajectory {
@@ -39,12 +39,12 @@ public:
 class TrajectorySave : public TrajectoryObserver
 {
   std::vector<TrajectoryEntry> trajectory_;
-  int64_t cnt{0};
+  int64_t cnt_;
  public:
   TrajectorySave(int64_t cnt);
   virtual ~TrajectorySave();
   virtual void Step(TrajectoryEntry seirt) override;
-  virtual const std::vector<TrajectoryEntry>& Trajectory() const;
+  virtual const std::vector<TrajectoryEntry>& Trajectory();
 };
 
 
@@ -64,7 +64,7 @@ class PercentTrajectorySave : public TrajectoryObserver
   virtual ~PercentTrajectorySave();
 
   virtual void Step(TrajectoryEntry seirt) override;
-  virtual const std::vector<TrajectoryEntry>& Trajectory() const;
+  virtual const std::vector<TrajectoryEntry>& Trajectory();
 };
 
 

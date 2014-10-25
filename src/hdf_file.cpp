@@ -3,6 +3,8 @@
 #include <mutex>
 #include <exception>
 #include <fstream>
+#include "boost/uuid/uuid.hpp"
+#include "boost/uuid/uuid_generators.hpp"
 #include "hdf_file.hpp"
 #include "hdf5.h"
 #include "smv.hpp"
@@ -79,6 +81,9 @@ bool HDFFile::Open(bool truncate) {
   BOOST_LOG_TRIVIAL(info)<<"Writing to file directory "<<trajname.str();
   trajectory_group_=H5Gcreate(file_id_, trajname.str().c_str(), H5P_DEFAULT,
     H5P_DEFAULT, H5P_DEFAULT);
+
+  WriteUUIDTo(trajectory_group_);
+
   return true;
 }
 
@@ -187,3 +192,32 @@ bool HDFFile::Close() {
   return true;
 }
 
+bool HDFFile::WriteUUIDTo(hid_t group) const {
+  auto gen=boost::uuids::random_generator();
+  boost::uuids::uuid tag(gen());
+  std::stringstream uuidstring;
+  uuidstring << tag;
+
+  hsize_t odims=8;
+  hid_t ospace_id=H5Screate_simple(1, &odims, NULL);
+
+  hid_t strtype=H5Tcopy(H5T_STD_U8LE);
+  herr_t strstatus=H5Tset_size(strtype, tag.size());
+  if (strstatus<0) {
+    BOOST_LOG_TRIVIAL(error)
+      <<"Could not create string for executable data.";
+      return false;
+  }
+
+  hid_t attr0_id=H5Acreate2(group, "uuid", strtype,
+    ospace_id, H5P_DEFAULT, H5P_DEFAULT);
+  herr_t atstatus=H5Awrite(attr0_id, strtype, &tag);
+  if (atstatus<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not write attribute "<<"uuid";
+    return false;
+  }
+  H5Tclose(strtype);
+  H5Aclose(attr0_id);
+  H5Sclose(ospace_id);
+  return true;
+}
