@@ -14,12 +14,14 @@
 BOOST=/usr/local/boost_1_54_0mt
 # Different Boost installations have different suffixes.
 # If there is no suffix, use "BOOSTVARIANT=".
-BOOSTVARIANT=
+BOOSTVARIANT=-mt
 SEMIMARKOV=/usr/local/include/semimarkov-0.1
 HDF5=/usr/local/hdf5-1.8.11
 MCRAND=/home/ajd27/Documents/mcrand
+FIGTREE=$(HOME)/Documents/figtree
+FIGTREE_LIBS=-L$(FIGTREE)/lib -lann_figtree_version -lfigtree
 
-CXX=clang++
+CXX=g++
 # -DSMVHIDELOG -pg
 OPT=-std=c++11 -DHAVE_CONFIG_H -fPIC -g -O2 -DSMVHIDELOG
 INCLUDES=-I$(SEMIMARKOV) -I. -I$(BOOST)/include -I$(HDF5)/include -I$(MCRAND)/include
@@ -65,6 +67,13 @@ individual: individual.cpp fmdv.hpp feedlot_places.hpp feedlot_individual_transi
 	$(CXX) individual.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-o individual $(LIBS)
 
+ensemble_sum: ensemble_sum.o hdf_file.o
+	$(CXX) ensemble_sum.o hdf_file.o $(INCLUDES) $(OPT) \
+	-o $@ $(FIGTREE_LIBS) $(LIBS)
+
+ensemble_sum.o: ensemble_sum.cpp hdf_file.hpp
+	$(CXX) $< $(OPT) -I$(FIGTREE)/include $(INCLUDES) -c -o $@
+
 hdf_file.o: hdf_file.cpp hdf_file.hpp trajectory.hpp parameter.hpp
 	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
 
@@ -87,4 +96,4 @@ feedlot_version.hpp: Makefile
 	python getgit.py
 
 clean:
-	rm -f *.o sirexp together rider individual sirdemo_version.hpp
+	rm -f *.o sirexp together rider individual ensemble_sum sirdemo_version.hpp

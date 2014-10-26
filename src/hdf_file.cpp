@@ -33,6 +33,14 @@ herr_t IterateTrajectories(hid_t group_id, const char* group_name,
 }
 
 
+herr_t TrajectoryNames(hid_t group_id, const char* relative_name,
+  const H5L_info_t* info, void* op_data) {
+  typedef std::vector<std::string> Names;
+  Names* name=static_cast<Names*>(op_data);
+  name->push_back(std::string{relative_name});
+  return 0;
+}
+
 
 HDFFile::HDFFile(const std::string& filename)
 : filename_(filename), open_(false), file_id_(0), trajectory_group_(0)
@@ -87,6 +95,30 @@ bool HDFFile::Open(bool truncate) {
   return true;
 }
 
+bool HDFFile::OpenRead(bool readwrite) {
+  std::ifstream file_exists(filename_.c_str());
+  bool exists=file_exists.good();
+  file_exists.close();
+  if (!exists) {
+    BOOST_LOG_TRIVIAL(error)<<"File doesn't exist to open "<<filename_;
+    return false;
+  }
+
+  if (readwrite) {
+    BOOST_LOG_TRIVIAL(debug)<<"Open readwrite: "<<filename_;
+    file_id_=H5Fopen(filename_.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+  } else {
+    BOOST_LOG_TRIVIAL(debug)<<"Open read-only: "<<filename_;
+    file_id_=H5Fopen(filename_.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+  }
+
+  if (file_id_<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not open file for reading "<<filename_;
+    return false;
+  }
+
+  open_=true;
+}
 
 bool HDFFile::WriteExecutableData(const std::map<std::string,std::string>& compile,
   const boost::program_options::basic_parsed_options<char>& options,
@@ -177,10 +209,12 @@ bool HDFFile::WriteExecutableData(const std::map<std::string,std::string>& compi
 
 bool HDFFile::Close() {
   if (open_) {
-    herr_t group_status=H5Gclose(trajectory_group_);
-    if (group_status<0) {
-      BOOST_LOG_TRIVIAL(warning)<<"Could not close HDF5 group "<<group_status;
-      return false;
+    if (trajectory_group_>0) {
+      herr_t group_status=H5Gclose(trajectory_group_);
+      if (group_status<0) {
+        BOOST_LOG_TRIVIAL(warning)<<"Could not close HDF5 group "<<group_status;
+        return false;
+      }
     }
     herr_t status=H5Fclose(file_id_);
     if (status<0) {
@@ -221,4 +255,121 @@ bool HDFFile::WriteUUIDTo(hid_t group) const {
   H5Aclose(attr0_id);
   H5Sclose(ospace_id);
   return true;
+}
+
+
+std::vector<std::string> HDFFile::Trajectories() const {
+  std::vector<std::string> name;
+  herr_t find_status=H5Literate_by_name(file_id_, "/trajectory", H5_INDEX_NAME,
+    H5_ITER_INC, NULL, TrajectoryNames, &name, H5P_DEFAULT);
+  if (find_status<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not iterate over groups in file.";
+  }
+  return name;
+}
+
+std::vector<int64_t> HDFFile::LoadInitialPen(
+    const std::string dataset_name) const {
+  std::stringstream initial_name_str;
+  initial_name_str<<"/trajectory/"<<dataset_name<<"/initialpencount";
+  const char* initial_name=initial_name_str.str().c_str();
+
+  hid_t ds_id=H5Dopen(file_id_, initial_name, H5P_DEFAULT);
+  if (ds_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not read dataset from file: "
+        <<initial_name_str.str();
+    return std::vector<int64_t>{0};
+  }
+  hid_t space_id=H5Dget_space(ds_id);
+  int ndims=H5Sget_simple_extent_ndims(space_id);
+  if (ndims!=2) {
+    BOOST_LOG_TRIVIAL(error)<<"initial values dataset has wrong number of "
+        <<"dimensions? "<<ndims;
+  }
+  hsize_t dims[ndims];
+  hsize_t maxdims[ndims];
+  ndims=H5Sget_simple_extent_dims(space_id, dims, maxdims);
+  if (ndims<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Couldn't get extent of dataset?";
+  }
+  std::vector<int64_t> initial(dims[0]*dims[1], 0);
+  herr_t read_status=H5Dread(ds_id, H5T_STD_I64LE, space_id, H5S_ALL,
+      H5P_DEFAULT, &initial[0]);
+
+  H5Sclose(space_id);
+  H5Dclose(ds_id);
+  return initial;
+}
+
+
+std::vector<TrajectoryEntry> HDFFile::LoadTrajectoryFromPens(
+    const std::string dataset_name) const {
+  std::stringstream initial_name_str;
+  initial_name_str<<"/trajectory/"<<dataset_name<<"/trajectory";
+  const char* initial_name=initial_name_str.str().c_str();
+
+  hid_t ds_id=H5Dopen(file_id_, initial_name, H5P_DEFAULT);
+  if (ds_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not read dataset from file: "
+        <<initial_name_str.str();
+    return std::vector<TrajectoryEntry>(0);
+  }
+  hid_t space_id=H5Dget_space(ds_id);
+  int ndims=H5Sget_simple_extent_ndims(space_id);
+  if (ndims!=1) {
+    BOOST_LOG_TRIVIAL(error)<<"initial values dataset has wrong number of "
+        <<"dimensions? "<<ndims;
+  }
+  hsize_t dims[ndims];
+  hsize_t maxdims[ndims];
+  ndims=H5Sget_simple_extent_dims(space_id, dims, maxdims);
+  if (ndims<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Couldn't get extent of dataset?";
+  }
+  std::vector<PenTrajectory> events{dims[0]};
+  hid_t type_id=H5Dget_type(ds_id);
+  herr_t read_status=H5Dread(ds_id, type_id, space_id, H5S_ALL,
+      H5P_DEFAULT, &events[0]);
+
+  std::vector<TrajectoryEntry> trajectory{dims[0]+1};
+  auto initial_pen=LoadInitialPen(dataset_name);
+  std::vector<int64_t> initial{4};
+  initial.assign(4, 0);
+  for (size_t ip=0; ip<initial_pen.size(); ++ip) {
+    for (size_t cidx=0; cidx<4; ++cidx) {
+      initial[cidx]+=initial_pen[ip+cidx];
+    }
+    ip+=4;
+  }
+  double t=0;
+  for (size_t i=0; i<dims[0]+1; ++i) {
+    trajectory[i].s=initial[0];
+    trajectory[i].e=initial[1];
+    trajectory[i].i=initial[2];
+    trajectory[i].r=initial[3];
+    trajectory[i].t=t;
+
+    switch (events[i].transition) {
+      case 0:
+        initial[0]-=1;
+        initial[1]+=1;
+        break;
+      case 1:
+        initial[1]-=1;
+        initial[2]+=1;
+        break;
+      case 2:
+        initial[2]-=1;
+        initial[3]+=1;
+        break;
+      default:
+        BOOST_LOG_TRIVIAL(error)<<"Unknown transition type.";
+        break;
+    }
+    t=events[i].time;
+  }
+
+  H5Sclose(space_id);
+  H5Dclose(ds_id);
+  return trajectory;
 }

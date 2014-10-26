@@ -28,6 +28,7 @@ class HDFFile {
   HDFFile& operator=(const HDFFile&)=delete;
   ~HDFFile();
   bool Open(bool truncate=true);
+  bool OpenRead(bool readwrite=true);
   bool Close();
 
   template<typename TrajType>
@@ -47,6 +48,9 @@ class HDFFile {
     const boost::program_options::basic_parsed_options<char>& cmdline,
     const std::vector<int64_t>& initial_values) const;
 
+  std::vector<std::string> Trajectories() const;
+  std::vector<int64_t> LoadInitialPen(const std::string dataset_name) const;
+  TrajectoryType LoadTrajectoryFromPens(const std::string dataset_name) const;
  private:
   bool WriteUUIDTo(hid_t group) const;
 };
@@ -310,6 +314,7 @@ bool HDFFile::SavePenTrajectory(const Params& params,
   herr_t dg_status=H5Gclose(dataset_group_id);
   return true;
 }
+
 
 #endif
 
