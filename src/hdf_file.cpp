@@ -269,6 +269,20 @@ std::vector<std::string> HDFFile::Trajectories() const {
   return name;
 }
 
+std::vector<int64_t> HDFFile::InitialValues() const {
+  hid_t attr1_id=H5Aopen_by_name(file_id_, "/trajectory",
+      "Initial Values", H5P_DEFAULT, H5P_DEFAULT);
+  auto siri=std::vector<int64_t>(4, 0);
+
+  herr_t at1status=H5Aread(attr1_id, H5T_NATIVE_LONG, &siri[0]);
+  if (at1status<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not read attribute Initial Values";
+    return siri;
+  }
+  H5Aclose(attr1_id);
+  return siri;
+}
+
 std::vector<int64_t> HDFFile::LoadInitialPen(
     const std::string dataset_name) const {
   std::stringstream initial_name_str;
@@ -300,6 +314,42 @@ std::vector<int64_t> HDFFile::LoadInitialPen(
   H5Sclose(space_id);
   H5Dclose(ds_id);
   return initial;
+}
+
+std::array<int64_t, 2> HDFFile::EventsInFile() const {
+  int64_t trajectory_cnt{0};
+  int64_t event_cnt{0};
+  auto trajectories=Trajectories();
+  for (auto traj_name : trajectories) {
+    std::stringstream initial_name_str;
+    initial_name_str<<"/trajectory/"<<traj_name<<"/trajectory";
+    const char* initial_name=initial_name_str.str().c_str();
+
+    hid_t ds_id=H5Dopen(file_id_, initial_name, H5P_DEFAULT);
+    if (ds_id<0) {
+      BOOST_LOG_TRIVIAL(error)<<"Could not read dataset from file: "
+          <<initial_name_str.str();
+      return {0, 0};
+    }
+
+    hid_t space_id=H5Dget_space(ds_id);
+    int ndims=H5Sget_simple_extent_ndims(space_id);
+    if (ndims!=1) {
+      BOOST_LOG_TRIVIAL(error)<<"initial values dataset has wrong number of "
+          <<"dimensions? "<<ndims;
+      return {0, 0};
+    }
+    hsize_t dims[ndims];
+    hsize_t maxdims[ndims];
+    ndims=H5Sget_simple_extent_dims(space_id, dims, maxdims);
+    if (ndims<0) {
+      BOOST_LOG_TRIVIAL(error)<<"Couldn't get extent of dataset?";
+      return {0, 0};
+    }
+    trajectory_cnt+=1;
+    event_cnt+=dims[0];
+  }
+  return {trajectory_cnt, event_cnt};
 }
 
 
@@ -342,14 +392,13 @@ std::vector<TrajectoryEntry> HDFFile::LoadTrajectoryFromPens(
     }
     ip+=4;
   }
-  double t=0;
-  for (size_t i=0; i<dims[0]+1; ++i) {
-    trajectory[i].s=initial[0];
-    trajectory[i].e=initial[1];
-    trajectory[i].i=initial[2];
-    trajectory[i].r=initial[3];
-    trajectory[i].t=t;
 
+  trajectory[0].s=initial[0];
+  trajectory[0].e=initial[1];
+  trajectory[0].i=initial[2];
+  trajectory[0].r=initial[3];
+  trajectory[0].t=0.;
+  for (size_t i=0; i<dims[0]; ++i) {
     switch (events[i].transition) {
       case 0:
         initial[0]-=1;
@@ -364,10 +413,15 @@ std::vector<TrajectoryEntry> HDFFile::LoadTrajectoryFromPens(
         initial[3]+=1;
         break;
       default:
-        BOOST_LOG_TRIVIAL(error)<<"Unknown transition type.";
+        BOOST_LOG_TRIVIAL(error)<<"Unknown transition type."
+            <<events[i].transition;
         break;
     }
-    t=events[i].time;
+    trajectory[i+1].s=initial[0];
+    trajectory[i+1].e=initial[1];
+    trajectory[i+1].i=initial[2];
+    trajectory[i+1].r=initial[3];
+    trajectory[i+1].t=events[i].time;
   }
 
   H5Sclose(space_id);

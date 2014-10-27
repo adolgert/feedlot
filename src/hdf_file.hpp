@@ -48,8 +48,11 @@ class HDFFile {
     const boost::program_options::basic_parsed_options<char>& cmdline,
     const std::vector<int64_t>& initial_values) const;
 
+  // Reading.
   std::vector<std::string> Trajectories() const;
+  std::vector<int64_t> InitialValues() const;
   std::vector<int64_t> LoadInitialPen(const std::string dataset_name) const;
+  std::array<int64_t,2> EventsInFile() const;
   TrajectoryType LoadTrajectoryFromPens(const std::string dataset_name) const;
  private:
   bool WriteUUIDTo(hid_t group) const;

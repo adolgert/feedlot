@@ -34,7 +34,7 @@ LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
 	-lboost_system$(BOOSTVARIANT) -lhdf5 -lhdf5_hl -lgsl -lgslcblas \
 	-lmcrand -lpthread
 
-all: seir rider individual
+all: seir rider individual ensemble_sum
 .PHONY: all
 
 seir: seir_exp.o main.o hdf_file.o trajectory.o pen.o rider_enums.o \
