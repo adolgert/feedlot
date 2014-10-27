@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstdlib>
 #include "trajectory.hpp"
 
 
@@ -25,10 +26,10 @@ void PercentTrajectorySave::Step(TrajectoryEntry seirt) {
     threshhold_=std::floor(percent_*(seirt.s+seirt.e+seirt.i+seirt.r));
     trajectory_.emplace_back(seirt);
   } else {
-    bool ps=std::abs(seirt.s-last_.s)>threshhold_;
-    bool pe=std::abs(seirt.e-last_.e)>threshhold_;
-    bool pi=std::abs(seirt.i-last_.i)>threshhold_;
-    bool pr=std::abs(seirt.r-last_.r)>threshhold_;
+    bool ps=std::labs(seirt.s-last_.s)>threshhold_;
+    bool pe=std::labs(seirt.e-last_.e)>threshhold_;
+    bool pi=std::labs(seirt.i-last_.i)>threshhold_;
+    bool pr=std::labs(seirt.r-last_.r)>threshhold_;
     if (ps||pe||pi||pr) {
       trajectory_.emplace_back(seirt);
       last_=seirt;

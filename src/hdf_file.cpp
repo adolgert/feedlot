@@ -118,6 +118,7 @@ bool HDFFile::OpenRead(bool readwrite) {
   }
 
   open_=true;
+  return open_;
 }
 
 bool HDFFile::WriteExecutableData(const std::map<std::string,std::string>& compile,
