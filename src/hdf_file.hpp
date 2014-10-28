@@ -48,6 +48,10 @@ class HDFFile {
     const boost::program_options::basic_parsed_options<char>& cmdline,
     const std::vector<int64_t>& initial_values) const;
 
+  bool Save2DPDF(const std::vector<double>& interpolant,
+    const std::vector<double>& x, const std::vector<double>& y,
+    std::string name) const;
+
   // Reading.
   std::vector<std::string> Trajectories() const;
   std::vector<int64_t> InitialValues() const;
@@ -56,6 +60,8 @@ class HDFFile {
   TrajectoryType LoadTrajectoryFromPens(const std::string dataset_name) const;
  private:
   bool WriteUUIDTo(hid_t group) const;
+  bool Write1DFloat(hid_t group, const std::vector<double>& x,
+    const std::string& name) const;
 };
 
 

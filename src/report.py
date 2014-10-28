@@ -95,6 +95,9 @@ def summaries(h5f):
     penplot.trajectory_density_plot(seir[:,1], times, "Exposed")
     penplot.trajectory_density_plot(seir[:,2], times, "Infected")
 
+def trajectory_lines(h5f):
+    penplot.plot_trajectory_lines(quickpen.FileTrajectories(h5f))
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     parser=DefaultArgumentParser(description="Quick look at an H5 file")

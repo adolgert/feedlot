@@ -65,21 +65,37 @@ int main(int argc, char* argv[]) {
   for (int vidx=0; vidx<vres; ++vidx) {
     for (int hidx=0; hidx<hres; ++hidx) {
       target[2*(vidx*hres+hidx)]=hidx*(max_time/hres);
-      target[2*(vidx*hres+hidx)+1]=vidx*(total/static_cast<double>(vres));
+      // days_per_individual b/c we gave the routine a rescaled # of individuals
+      target[2*(vidx*hres+hidx)+1]=
+          days_per_individual*vidx*(total/static_cast<double>(vres));
     }
   }
-  std::vector<double> weight(target_cnt, 1.0);
+  // Can we normalize here?
+  std::vector<double> weight(target_cnt, 1.0/sample_cnt);
   int weight_kind_cnt=1;
 
   int sample_dimension=2;
-  int source_cnt=sample_cnt;
   double h=4.0; // About 100x100 is domain.
   double epsilon=1e-2;
 
-  std::vector<double> interpolant(weight_kind_cnt*source_cnt, 0.0);
-  figtree(sample_dimension, source_cnt, target_cnt, weight_kind_cnt,
-      &sei[0][0], h, &weight[0], &target[0], epsilon, &interpolant[0]);
+  std::vector<double> interpolant(weight_kind_cnt*target_cnt, 0.0);
+  figtree(sample_dimension, target_cnt, target_cnt, weight_kind_cnt,
+      &sei[2][0], h, &weight[0], &target[0], epsilon, &interpolant[0]);
 
   file.Close();
+
+  HDFFile out("image.h5");
+  out.Open();
+  std::vector<double> x(hres);
+  for (int xidx=0; xidx<hres; ++xidx) {
+    x[xidx]=xidx*(max_time/hres);
+  }
+  std::vector<double> y(vres);
+  for (int yidx=0; yidx<vres; ++yidx) {
+    // Don't rescale our reported axes.
+    y[yidx]=yidx*(total/static_cast<double>(vres));
+  }
+  out.Save2DPDF(interpolant, x, y, "ensemble2d");
+  out.Close();
   return 0;
 }

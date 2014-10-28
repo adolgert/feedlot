@@ -135,6 +135,20 @@ def summary_of_ensemble(f, max_cnt):
             s.observe(total, times)
     return summaries
 
+class FileTrajectories(object):
+    def __init__(self, h5f):
+        self.h5f=h5f
+        self.trajectory_names=None
+
+    def __len__(self):
+        if self.trajectory_names is None:
+            self.trajectory_names=trajectories(self.h5f)
+        return len(self.trajectory_names)
+
+    def __getitem__(self, intkey):
+        total, times=total_trajectory(self.h5f, self.trajectory_names[intkey])
+        return total, times
+
 
 def foreach_trajectory(f, func):
     trajectories=f['/trajectory']

@@ -3,6 +3,7 @@
 #include <mutex>
 #include <exception>
 #include <fstream>
+#include <strstream>
 #include "boost/uuid/uuid.hpp"
 #include "boost/uuid/uuid_generators.hpp"
 #include "hdf_file.hpp"
@@ -227,37 +228,6 @@ bool HDFFile::Close() {
   return true;
 }
 
-bool HDFFile::WriteUUIDTo(hid_t group) const {
-  auto gen=boost::uuids::random_generator();
-  boost::uuids::uuid tag(gen());
-  std::stringstream uuidstring;
-  uuidstring << tag;
-
-  hsize_t odims=1;
-  hid_t ospace_id=H5Screate_simple(1, &odims, NULL);
-
-  hid_t strtype=H5Tcopy(H5T_C_S1);
-  BOOST_LOG_TRIVIAL(debug)<<"uuidstring size " <<uuidstring.str().size();
-  herr_t strstatus=H5Tset_size(strtype, uuidstring.str().size());
-  if (strstatus<0) {
-    BOOST_LOG_TRIVIAL(error)
-      <<"Could not create string for executable data.";
-      return false;
-  }
-
-  hid_t attr0_id=H5Acreate2(group, "uuid", strtype,
-    ospace_id, H5P_DEFAULT, H5P_DEFAULT);
-  herr_t atstatus=H5Awrite(attr0_id, strtype, uuidstring.str().c_str());
-  if (atstatus<0) {
-    BOOST_LOG_TRIVIAL(error)<<"Could not write attribute "<<"uuid";
-    return false;
-  }
-  H5Tclose(strtype);
-  H5Aclose(attr0_id);
-  H5Sclose(ospace_id);
-  return true;
-}
-
 
 std::vector<std::string> HDFFile::Trajectories() const {
   std::vector<std::string> name;
@@ -427,4 +397,92 @@ std::vector<TrajectoryEntry> HDFFile::LoadTrajectoryFromPens(
   H5Sclose(space_id);
   H5Dclose(ds_id);
   return trajectory;
+}
+
+
+
+bool HDFFile::Save2DPDF(const std::vector<double>& interpolant,
+    const std::vector<double>& x, const std::vector<double>& y,
+    std::string name) const {
+  hid_t root=H5Gopen(file_id_, "/", H5P_DEFAULT);
+  htri_t bImages=H5Lexists(root, "images", H5P_DEFAULT);
+  if (bImages<0) {
+    BOOST_LOG_TRIVIAL(error), "Could not find if /images exists in file.";
+    return false;
+  }
+  hid_t image_group;
+  if (bImages==0) {
+    std::stringstream trajname;
+    trajname<<"/images";
+    BOOST_LOG_TRIVIAL(info)<<"Creating HDF5 directory "<<trajname.str();
+    image_group=H5Gcreate(file_id_, trajname.str().c_str(), H5P_DEFAULT,
+      H5P_DEFAULT, H5P_DEFAULT);
+  } else {
+    image_group=H5Gopen(file_id_, "/images", H5P_DEFAULT);
+  }
+  H5Gclose(root);
+
+  std::stringstream xstr;
+  xstr<<name<<"x";
+  Write1DFloat(image_group, x, xstr.str());
+  std::stringstream ystr;
+  ystr<<name<<"y";
+  Write1DFloat(image_group, y, ystr.str());
+
+  hsize_t dims[2];
+  dims[0]=x.size();
+  dims[1]=y.size();
+  hid_t dspace=H5Screate_simple(2, dims, NULL);
+  hid_t ds_id=H5Dcreate(image_group, name.c_str(), H5T_IEEE_F64LE,
+      dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  herr_t interpolant_write=H5Dwrite(ds_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL,
+      H5P_DEFAULT, &interpolant[0]);
+  H5Dclose(ds_id);
+  H5Sclose(dspace);
+}
+
+
+bool HDFFile::WriteUUIDTo(hid_t group) const {
+  auto gen=boost::uuids::random_generator();
+  boost::uuids::uuid tag(gen());
+  std::stringstream uuidstring;
+  uuidstring << tag;
+
+  hsize_t odims=1;
+  hid_t ospace_id=H5Screate_simple(1, &odims, NULL);
+
+  hid_t strtype=H5Tcopy(H5T_C_S1);
+  BOOST_LOG_TRIVIAL(debug)<<"uuidstring size " <<uuidstring.str().size();
+  herr_t strstatus=H5Tset_size(strtype, uuidstring.str().size());
+  if (strstatus<0) {
+    BOOST_LOG_TRIVIAL(error)
+      <<"Could not create string for executable data.";
+      return false;
+  }
+
+  hid_t attr0_id=H5Acreate2(group, "uuid", strtype,
+    ospace_id, H5P_DEFAULT, H5P_DEFAULT);
+  herr_t atstatus=H5Awrite(attr0_id, strtype, uuidstring.str().c_str());
+  if (atstatus<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not write attribute "<<"uuid";
+    return false;
+  }
+  H5Tclose(strtype);
+  H5Aclose(attr0_id);
+  H5Sclose(ospace_id);
+  return true;
+}
+
+
+bool HDFFile::Write1DFloat(hid_t group, const std::vector<double>& x,
+    const std::string& name) const {
+  hsize_t dims[1];
+  dims[0]=x.size();
+  hid_t x_dspace=H5Screate_simple(1, dims, NULL);
+  hid_t x_id=H5Dcreate(group, name.c_str(), H5T_IEEE_F64LE,
+      x_dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  herr_t x_write=H5Dwrite(x_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL,
+      H5P_DEFAULT, &x[0]);
+  H5Dclose(x_id);
+  H5Sclose(x_dspace);
 }

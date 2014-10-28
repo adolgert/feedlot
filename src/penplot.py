@@ -106,6 +106,19 @@ def trajectory_density_plot(m1, m2, name):
     plt.savefig("trajectory_density_{0}.pdf".format(name), format="pdf")
 
 
+def plot_trajectory_lines(file_trajectories):
+    plt.clf()
+    cnt=len(file_trajectories)
+    for i in range(cnt):
+        total, times=file_trajectories[i]
+        infected=total[:,1]+total[:,2] # e + i
+        plt.plot(times, infected, alpha=0.2, color="green")
+
+    plt.xlabel("Time [days]")
+    plt.ylabel("Probability")
+    plt.title("Exposed and Infectious for Multiple Trajectories")
+    plt.savefig("trajectory_lines.pdf", format="pdf")
+    plt.clf()
 
 
 def test_one():
