@@ -1,0 +1,385 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		E212520C19FF57FA00C4EB7E /* libmcrand.so in Frameworks */ = {isa = PBXBuildFile; fileRef = E212520B19FF57FA00C4EB7E /* libmcrand.so */; };
+		E276612919FF445C0028FC59 /* hdf_file.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E276611419FF445C0028FC59 /* hdf_file.cpp */; };
+		E276612A19FF445C0028FC59 /* rider.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E276611619FF445C0028FC59 /* rider.cpp */; };
+		E276612B19FF445C0028FC59 /* trajectory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E276611719FF445C0028FC59 /* trajectory.cpp */; };
+		E276612D19FF445C0028FC59 /* model_options.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E276611E19FF445C0028FC59 /* model_options.cpp */; };
+		E276612E19FF445C0028FC59 /* pen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E276612119FF445C0028FC59 /* pen.cpp */; };
+		E276612F19FF445C0028FC59 /* place_transition.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E276612319FF445C0028FC59 /* place_transition.cpp */; };
+		E276613019FF445C0028FC59 /* rider_enums.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E276612519FF445C0028FC59 /* rider_enums.cpp */; };
+		E276613119FF445C0028FC59 /* ridermain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E276612819FF445C0028FC59 /* ridermain.cpp */; };
+		E276613419FF48810028FC59 /* libhdf5_hl.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276613219FF48810028FC59 /* libhdf5_hl.dylib */; };
+		E276613519FF48810028FC59 /* libhdf5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276613319FF48810028FC59 /* libhdf5.dylib */; };
+		E276613819FF489C0028FC59 /* libgsl.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276613619FF489C0028FC59 /* libgsl.dylib */; };
+		E276613919FF489C0028FC59 /* libgslcblas.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276613719FF489C0028FC59 /* libgslcblas.dylib */; };
+		E276613D19FF48DE0028FC59 /* libboost_log_setup-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276613A19FF48DE0028FC59 /* libboost_log_setup-mt.dylib */; };
+		E276613E19FF48DE0028FC59 /* libboost_log-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276613B19FF48DE0028FC59 /* libboost_log-mt.dylib */; };
+		E276613F19FF48DE0028FC59 /* libboost_unit_test_framework-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276613C19FF48DE0028FC59 /* libboost_unit_test_framework-mt.dylib */; };
+		E276614419FF490C0028FC59 /* libboost_chrono-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276614019FF490C0028FC59 /* libboost_chrono-mt.dylib */; };
+		E276614519FF490C0028FC59 /* libboost_date_time-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276614119FF490C0028FC59 /* libboost_date_time-mt.dylib */; };
+		E276614619FF490C0028FC59 /* libboost_filesystem-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276614219FF490C0028FC59 /* libboost_filesystem-mt.dylib */; };
+		E276614719FF490C0028FC59 /* libboost_thread-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276614319FF490C0028FC59 /* libboost_thread-mt.dylib */; };
+		E276614B19FF492A0028FC59 /* libboost_program_options-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276614819FF492A0028FC59 /* libboost_program_options-mt.dylib */; };
+		E276614C19FF492A0028FC59 /* libboost_random-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276614919FF492A0028FC59 /* libboost_random-mt.dylib */; };
+		E276614D19FF492A0028FC59 /* libboost_system-mt.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276614A19FF492A0028FC59 /* libboost_system-mt.dylib */; };
+		E276615119FF49530028FC59 /* libpthread.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = E276615019FF49530028FC59 /* libpthread.dylib */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		E276610A19FF19800028FC59 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		E212520B19FF57FA00C4EB7E /* libmcrand.so */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libmcrand.so; path = ../../../mcrand/lib/libmcrand.so; sourceTree = "<group>"; };
+		E276610C19FF19800028FC59 /* rider */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = rider; sourceTree = BUILT_PRODUCTS_DIR; };
+		E276611419FF445C0028FC59 /* hdf_file.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = hdf_file.cpp; path = ../../../src/hdf_file.cpp; sourceTree = "<group>"; };
+		E276611519FF445C0028FC59 /* hdf_file.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = hdf_file.hpp; path = ../../../src/hdf_file.hpp; sourceTree = "<group>"; };
+		E276611619FF445C0028FC59 /* rider.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = rider.cpp; path = ../../../src/rider.cpp; sourceTree = "<group>"; };
+		E276611719FF445C0028FC59 /* trajectory.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = trajectory.cpp; path = ../../../src/trajectory.cpp; sourceTree = "<group>"; };
+		E276611819FF445C0028FC59 /* trajectory.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = trajectory.hpp; path = ../../../src/trajectory.hpp; sourceTree = "<group>"; };
+		E276611919FF445C0028FC59 /* feedlot_version.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = feedlot_version.hpp; path = ../../../src/feedlot_version.hpp; sourceTree = "<group>"; };
+		E276611A19FF445C0028FC59 /* feedlot_individual_transitions.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = feedlot_individual_transitions.hpp; path = ../../../src/feedlot_individual_transitions.hpp; sourceTree = "<group>"; };
+		E276611B19FF445C0028FC59 /* feedlot_places.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = feedlot_places.hpp; path = ../../../src/feedlot_places.hpp; sourceTree = "<group>"; };
+		E276611D19FF445C0028FC59 /* fmdv.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = fmdv.hpp; path = ../../../src/fmdv.hpp; sourceTree = "<group>"; };
+		E276611E19FF445C0028FC59 /* model_options.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = model_options.cpp; path = ../../../src/model_options.cpp; sourceTree = "<group>"; };
+		E276611F19FF445C0028FC59 /* model_options.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = model_options.hpp; path = ../../../src/model_options.hpp; sourceTree = "<group>"; };
+		E276612019FF445C0028FC59 /* parameter.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = parameter.hpp; path = ../../../src/parameter.hpp; sourceTree = "<group>"; };
+		E276612119FF445C0028FC59 /* pen.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = pen.cpp; path = ../../../src/pen.cpp; sourceTree = "<group>"; };
+		E276612219FF445C0028FC59 /* pen.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = pen.hpp; path = ../../../src/pen.hpp; sourceTree = "<group>"; };
+		E276612319FF445C0028FC59 /* place_transition.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = place_transition.cpp; path = ../../../src/place_transition.cpp; sourceTree = "<group>"; };
+		E276612419FF445C0028FC59 /* place_transition.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = place_transition.hpp; path = ../../../src/place_transition.hpp; sourceTree = "<group>"; };
+		E276612519FF445C0028FC59 /* rider_enums.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = rider_enums.cpp; path = ../../../src/rider_enums.cpp; sourceTree = "<group>"; };
+		E276612619FF445C0028FC59 /* rider_enums.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = rider_enums.hpp; path = ../../../src/rider_enums.hpp; sourceTree = "<group>"; };
+		E276612719FF445C0028FC59 /* rider.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = rider.hpp; path = ../../../src/rider.hpp; sourceTree = "<group>"; };
+		E276612819FF445C0028FC59 /* ridermain.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = ridermain.cpp; path = ../../../src/ridermain.cpp; sourceTree = "<group>"; };
+		E276613219FF48810028FC59 /* libhdf5_hl.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libhdf5_hl.dylib; path = ../../../../../../usr/local/Cellar/hdf5/1.8.13/lib/libhdf5_hl.dylib; sourceTree = "<group>"; };
+		E276613319FF48810028FC59 /* libhdf5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libhdf5.dylib; path = ../../../../../../usr/local/Cellar/hdf5/1.8.13/lib/libhdf5.dylib; sourceTree = "<group>"; };
+		E276613619FF489C0028FC59 /* libgsl.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libgsl.dylib; path = ../../../../../../usr/local/Cellar/gsl/1.16/lib/libgsl.dylib; sourceTree = "<group>"; };
+		E276613719FF489C0028FC59 /* libgslcblas.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libgslcblas.dylib; path = ../../../../../../usr/local/Cellar/gsl/1.16/lib/libgslcblas.dylib; sourceTree = "<group>"; };
+		E276613A19FF48DE0028FC59 /* libboost_log_setup-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libboost_log_setup-mt.dylib"; path = "../../../../../../usr/local/Cellar/boost/1.56.0/lib/libboost_log_setup-mt.dylib"; sourceTree = "<group>"; };
+		E276613B19FF48DE0028FC59 /* libboost_log-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libboost_log-mt.dylib"; path = "../../../../../../usr/local/Cellar/boost/1.56.0/lib/libboost_log-mt.dylib"; sourceTree = "<group>"; };
+		E276613C19FF48DE0028FC59 /* libboost_unit_test_framework-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libboost_unit_test_framework-mt.dylib"; path = "../../../../../../usr/local/Cellar/boost/1.56.0/lib/libboost_unit_test_framework-mt.dylib"; sourceTree = "<group>"; };
+		E276614019FF490C0028FC59 /* libboost_chrono-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libboost_chrono-mt.dylib"; path = "../../../../../../usr/local/Cellar/boost/1.56.0/lib/libboost_chrono-mt.dylib"; sourceTree = "<group>"; };
+		E276614119FF490C0028FC59 /* libboost_date_time-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libboost_date_time-mt.dylib"; path = "../../../../../../usr/local/Cellar/boost/1.56.0/lib/libboost_date_time-mt.dylib"; sourceTree = "<group>"; };
+		E276614219FF490C0028FC59 /* libboost_filesystem-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libboost_filesystem-mt.dylib"; path = "../../../../../../usr/local/Cellar/boost/1.56.0/lib/libboost_filesystem-mt.dylib"; sourceTree = "<group>"; };
+		E276614319FF490C0028FC59 /* libboost_thread-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libboost_thread-mt.dylib"; path = "../../../../../../usr/local/Cellar/boost/1.56.0/lib/libboost_thread-mt.dylib"; sourceTree = "<group>"; };
+		E276614819FF492A0028FC59 /* libboost_program_options-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libboost_program_options-mt.dylib"; path = "../../../../../../usr/local/Cellar/boost/1.56.0/lib/libboost_program_options-mt.dylib"; sourceTree = "<group>"; };
+		E276614919FF492A0028FC59 /* libboost_random-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libboost_random-mt.dylib"; path = "../../../../../../usr/local/Cellar/boost/1.56.0/lib/libboost_random-mt.dylib"; sourceTree = "<group>"; };
+		E276614A19FF492A0028FC59 /* libboost_system-mt.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libboost_system-mt.dylib"; path = "../../../../../../usr/local/Cellar/boost/1.56.0/lib/libboost_system-mt.dylib"; sourceTree = "<group>"; };
+		E276615019FF49530028FC59 /* libpthread.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libpthread.dylib; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk/usr/lib/libpthread.dylib; sourceTree = DEVELOPER_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E276610919FF19800028FC59 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E276615119FF49530028FC59 /* libpthread.dylib in Frameworks */,
+				E276613D19FF48DE0028FC59 /* libboost_log_setup-mt.dylib in Frameworks */,
+				E276613E19FF48DE0028FC59 /* libboost_log-mt.dylib in Frameworks */,
+				E276613F19FF48DE0028FC59 /* libboost_unit_test_framework-mt.dylib in Frameworks */,
+				E276614419FF490C0028FC59 /* libboost_chrono-mt.dylib in Frameworks */,
+				E276614519FF490C0028FC59 /* libboost_date_time-mt.dylib in Frameworks */,
+				E276614619FF490C0028FC59 /* libboost_filesystem-mt.dylib in Frameworks */,
+				E276614719FF490C0028FC59 /* libboost_thread-mt.dylib in Frameworks */,
+				E276614B19FF492A0028FC59 /* libboost_program_options-mt.dylib in Frameworks */,
+				E276614C19FF492A0028FC59 /* libboost_random-mt.dylib in Frameworks */,
+				E276614D19FF492A0028FC59 /* libboost_system-mt.dylib in Frameworks */,
+				E212520C19FF57FA00C4EB7E /* libmcrand.so in Frameworks */,
+				E276613419FF48810028FC59 /* libhdf5_hl.dylib in Frameworks */,
+				E276613519FF48810028FC59 /* libhdf5.dylib in Frameworks */,
+				E276613819FF489C0028FC59 /* libgsl.dylib in Frameworks */,
+				E276613919FF489C0028FC59 /* libgslcblas.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		E276610119FF19360028FC59 = {
+			isa = PBXGroup;
+			children = (
+				E212520B19FF57FA00C4EB7E /* libmcrand.so */,
+				E276615019FF49530028FC59 /* libpthread.dylib */,
+				E276614819FF492A0028FC59 /* libboost_program_options-mt.dylib */,
+				E276614919FF492A0028FC59 /* libboost_random-mt.dylib */,
+				E276614A19FF492A0028FC59 /* libboost_system-mt.dylib */,
+				E276614019FF490C0028FC59 /* libboost_chrono-mt.dylib */,
+				E276614119FF490C0028FC59 /* libboost_date_time-mt.dylib */,
+				E276614219FF490C0028FC59 /* libboost_filesystem-mt.dylib */,
+				E276614319FF490C0028FC59 /* libboost_thread-mt.dylib */,
+				E276613A19FF48DE0028FC59 /* libboost_log_setup-mt.dylib */,
+				E276613B19FF48DE0028FC59 /* libboost_log-mt.dylib */,
+				E276613C19FF48DE0028FC59 /* libboost_unit_test_framework-mt.dylib */,
+				E276613619FF489C0028FC59 /* libgsl.dylib */,
+				E276613719FF489C0028FC59 /* libgslcblas.dylib */,
+				E276613219FF48810028FC59 /* libhdf5_hl.dylib */,
+				E276613319FF48810028FC59 /* libhdf5.dylib */,
+				E276610E19FF19800028FC59 /* rider */,
+				E276610D19FF19800028FC59 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E276610D19FF19800028FC59 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				E276610C19FF19800028FC59 /* rider */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E276610E19FF19800028FC59 /* rider */ = {
+			isa = PBXGroup;
+			children = (
+				E276611419FF445C0028FC59 /* hdf_file.cpp */,
+				E276611519FF445C0028FC59 /* hdf_file.hpp */,
+				E276611619FF445C0028FC59 /* rider.cpp */,
+				E276611719FF445C0028FC59 /* trajectory.cpp */,
+				E276611819FF445C0028FC59 /* trajectory.hpp */,
+				E276611919FF445C0028FC59 /* feedlot_version.hpp */,
+				E276611A19FF445C0028FC59 /* feedlot_individual_transitions.hpp */,
+				E276611B19FF445C0028FC59 /* feedlot_places.hpp */,
+				E276611D19FF445C0028FC59 /* fmdv.hpp */,
+				E276611E19FF445C0028FC59 /* model_options.cpp */,
+				E276611F19FF445C0028FC59 /* model_options.hpp */,
+				E276612019FF445C0028FC59 /* parameter.hpp */,
+				E276612119FF445C0028FC59 /* pen.cpp */,
+				E276612219FF445C0028FC59 /* pen.hpp */,
+				E276612319FF445C0028FC59 /* place_transition.cpp */,
+				E276612419FF445C0028FC59 /* place_transition.hpp */,
+				E276612519FF445C0028FC59 /* rider_enums.cpp */,
+				E276612619FF445C0028FC59 /* rider_enums.hpp */,
+				E276612719FF445C0028FC59 /* rider.hpp */,
+				E276612819FF445C0028FC59 /* ridermain.cpp */,
+			);
+			path = rider;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E276610B19FF19800028FC59 /* rider */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E276611119FF19800028FC59 /* Build configuration list for PBXNativeTarget "rider" */;
+			buildPhases = (
+				E276610819FF19800028FC59 /* Sources */,
+				E276610919FF19800028FC59 /* Frameworks */,
+				E276610A19FF19800028FC59 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = rider;
+			productName = rider;
+			productReference = E276610C19FF19800028FC59 /* rider */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		E276610219FF19360028FC59 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0610;
+				TargetAttributes = {
+					E276610B19FF19800028FC59 = {
+						CreatedOnToolsVersion = 6.1;
+					};
+				};
+			};
+			buildConfigurationList = E276610519FF19360028FC59 /* Build configuration list for PBXProject "feedlot" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = E276610119FF19360028FC59;
+			productRefGroup = E276610D19FF19800028FC59 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E276610B19FF19800028FC59 /* rider */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E276610819FF19800028FC59 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E276612D19FF445C0028FC59 /* model_options.cpp in Sources */,
+				E276612A19FF445C0028FC59 /* rider.cpp in Sources */,
+				E276612919FF445C0028FC59 /* hdf_file.cpp in Sources */,
+				E276612E19FF445C0028FC59 /* pen.cpp in Sources */,
+				E276613119FF445C0028FC59 /* ridermain.cpp in Sources */,
+				E276613019FF445C0028FC59 /* rider_enums.cpp in Sources */,
+				E276612B19FF445C0028FC59 /* trajectory.cpp in Sources */,
+				E276612F19FF445C0028FC59 /* place_transition.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		E276610619FF19360028FC59 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		E276610719FF19360028FC59 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		E276611219FF19800028FC59 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					/usr/local/Cellar/boost/1.56.0/include,
+					/usr/local/Cellar/gsl/1.16/include,
+					/Users/ajd27/Documents/mcrand/include,
+					"/usr/local/include/semimarkov-0.1",
+					/usr/local/Cellar/hdf5/1.8.13/include,
+				);
+				LIBRARY_SEARCH_PATHS = (
+					/usr/local/Cellar/boost/1.56.0/lib,
+					/usr/local/Cellar/hdf5/1.8.13/lib,
+					/usr/local/Cellar/gsl/1.16/lib,
+					/Users/ajd27/Documents/mcrand/lib,
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx10.9;
+			};
+			name = Debug;
+		};
+		E276611319FF19800028FC59 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_CXX_LANGUAGE_STANDARD = "c++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
+					/usr/local/Cellar/boost/1.56.0/include,
+					/usr/local/Cellar/gsl/1.16/include,
+					/Users/ajd27/Documents/mcrand/include,
+					"/usr/local/include/semimarkov-0.1",
+					/usr/local/Cellar/hdf5/1.8.13/include,
+				);
+				LIBRARY_SEARCH_PATHS = (
+					/usr/local/Cellar/boost/1.56.0/lib,
+					/usr/local/Cellar/hdf5/1.8.13/lib,
+					/usr/local/Cellar/gsl/1.16/lib,
+					/Users/ajd27/Documents/mcrand/lib,
+				);
+				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx10.9;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		E276610519FF19360028FC59 /* Build configuration list for PBXProject "feedlot" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E276610619FF19360028FC59 /* Debug */,
+				E276610719FF19360028FC59 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E276611119FF19800028FC59 /* Build configuration list for PBXNativeTarget "rider" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E276611219FF19800028FC59 /* Debug */,
+				E276611319FF19800028FC59 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = E276610219FF19360028FC59 /* Project object */;
+}

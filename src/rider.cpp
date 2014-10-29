@@ -759,8 +759,9 @@ bool CheckMarking(const GSPN& gspn, const Marking& marking,
 template<typename GSPN, typename SIRState>
 struct SEIROutput
 {
-  using StateArray=std::array<int64_t,4>;
-  std::shared_ptr<PenTrajectoryObserver> observer_;
+  using StateArray=std::array<int64_t,5>;
+  std::shared_ptr<PenTrajectoryObserver> pen_observer_;
+  std::shared_ptr<TrajectoryObserver> traj_observer_;
   const GSPN& gspn_;
   NonHomogeneousPoissonProcesses<int64_t,RandGen>& propagator_;
   StateArray seir_;
@@ -771,19 +772,21 @@ struct SEIROutput
 
   SEIROutput(const GSPN& gspn,
       NonHomogeneousPoissonProcesses<int64_t,RandGen>& propagator,
-      std::shared_ptr<PenTrajectoryObserver> observer,
+      std::shared_ptr<PenTrajectoryObserver> pen_observer,
+      std::shared_ptr<TrajectoryObserver> traj_observer,
       const std::vector<int64_t>& initial, int64_t pen_cnt, int64_t per_pen)
-  : gspn_(gspn), propagator_(propagator), observer_(observer),
-    per_pen_(per_pen), pen_cnt_(pen_cnt)
+  : gspn_(gspn), propagator_(propagator), pen_observer_(pen_observer),
+    traj_observer_(traj_observer), per_pen_(per_pen), pen_cnt_(pen_cnt)
   {
     std::get<0>(seir_)=initial[0];
     std::get<1>(seir_)=initial[1];
     std::get<2>(seir_)=initial[2];
     std::get<3>(seir_)=initial[3];
+    std::get<4>(seir_)=initial[4];
     individual_cnt_=std::accumulate(initial.begin(), initial.end(), int64_t{0});
   };
 
-  enum : int64_t { s, e, i, r };
+  enum : int64_t { s, e, i, r, n, c };
   bool operator()(const SIRState& state) {
     if (step_cnt==0) {
       this->initial(state);
@@ -832,9 +835,21 @@ struct SEIROutput
         compartment=2;
         get<2>(seir_)-=1;
         get<3>(seir_)+=1;
+        {
+          auto clinical_place=gspn_.PlaceVertex({individual, 0, c});
+          if (Length<0>(state.marking, clinical_place)>0) {
+            get<4>(seir_)-=1;
+          } else {
+            // Add a transition for the missing clinical step.
+            pen_observer_->Step({individual, affected_pen, 3,
+                state.CurrentTime()});
+          }
+        }
         break;
       case TransitionType::subclinical: // become clinical
-        affected=false;
+        compartment=3;
+        get<4>(seir_)+=1;
+        affected=true;
         break;
       default:
         affected=false;
@@ -847,8 +862,11 @@ struct SEIROutput
 
     SMVLOG(BOOST_LOG_TRIVIAL(debug)<<"observer: transition "<<transition);
     if (affected) {
-      observer_->Step({individual, affected_pen, compartment,
+      pen_observer_->Step({individual, affected_pen, compartment,
           state.CurrentTime()});
+      traj_observer_->Step({std::get<0>(seir_), std::get<1>(seir_), 
+        std::get<2>(seir_), std::get<3>(seir_), std::get<4>(seir_),
+        state.CurrentTime()});
       SMVLOG(BOOST_LOG_TRIVIAL(debug)<<"step cnt "<<step_cnt<<" e "
           <<std::get<1>(seir_)<<" i "<<std::get<2>(seir_)<<" r "
           <<std::get<3>(seir_)<<" in pen "<<affected_pen);
@@ -903,7 +921,7 @@ struct SEIROutput
       seir_init_[pen_idx].r=Length<0>(state.marking, splace);
       seir_init_[pen_idx].t=0;
     }
-    observer_->SetInitial(seir_init_);
+    pen_observer_->SetInitial(seir_init_);
   }
 
   void final(const SIRState& state) {
@@ -918,6 +936,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     std::map<ModelOptions,bool> opts,
     const PenContactGraph& pen_contact,
     std::shared_ptr<PenTrajectoryObserver> observer,
+    std::shared_ptr<TrajectoryObserver> traj_observer,
     RandGen& rng)
 {
   int64_t individual_cnt=std::accumulate(seir_cnt.begin(), seir_cnt.end(),
@@ -1011,7 +1030,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   Dynamics dynamics(gspn, {&competing});
 
   SEIROutput<SIRGSPN,SIRState> output_function(gspn, competing,
-    observer, seir_cnt, pen_cnt, animals_per_pen);
+    observer, traj_observer, seir_cnt, pen_cnt, animals_per_pen);
 
   dynamics.Initialize(&state, &rng);
 

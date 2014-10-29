@@ -1,4 +1,4 @@
-# Requires:
+constexpr char CFG[]=R"(# Requires:
 #   BOOST libraries: boost.org
 #   Gnu scientific libraries (GSL): https://www.gnu.org/software/gsl
 #   HDF5 library: http://www.hdfgroup.org/HDF5/
@@ -97,3 +97,9 @@ feedlot_version.hpp: Makefile
 
 clean:
 	rm -f *.o sirexp together rider individual ensemble_sum sirdemo_version.hpp
+)";
+
+constexpr char VERSION[]=R"(git@github.com:adolgert/feedlot.git:0d12113f12f6b0b71d703a6fdfd9b4b72bd479e0)";
+
+constexpr char COMPILETIME[]=R"(2014-10-29T18:27:30.221012)";
+
