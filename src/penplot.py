@@ -122,6 +122,21 @@ def plot_trajectory_lines(file_trajectories):
     plt.savefig("trajectory_lines.pdf", format="pdf")
     plt.clf()
 
+def prevalence_by_day(binned):
+    plt.clf()
+    logger.debug("nonzeros {0}".format(np.nonzero(binned[:,1:3])))
+    daycnt=np.nonzero(binned)[0][-1]+1
+    logger.debug("last nonzero day {0}".format(daycnt))
+    xl=np.linspace(0, daycnt-1, daycnt)
+    xr=np.linspace(1, daycnt, daycnt)
+    colors=["blue", "green", "black"]
+    for compartment_idx in range(1, 3):
+        plt.hlines(binned[:daycnt,compartment_idx], xl, xr,
+            color=colors[compartment_idx-1])
+    plt.xlabel("Time [days]")
+    plt.ylabel("Prevalence [individuals]")
+    plt.title("Average Prevalence Over All Realizations")
+    plt.savefig("prevalencebyday.pdf", format="pdf")
 
 def test_one():
     f=h5py.File("rider.h5","r")

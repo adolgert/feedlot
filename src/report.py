@@ -67,6 +67,7 @@ def write_report(info, outfile):
     info["TrajectoryLines"]=include_trajectory_lines()
     info["EndTime"]=include_end_time()
     info["TotalInfected"]=include_total_infected()
+    info["BinnedPrevalence"]=include_binned()
 
     text="""\\documentclass{{article}}
 \\usepackage{{graphicx}}
@@ -86,6 +87,8 @@ def write_report(info, outfile):
 {EndTime}
 
 {TotalInfected}
+
+{BinnedPrevalence}
 
 \\end{{document}}
 """.format(**info)
@@ -131,6 +134,24 @@ def include_trajectory_lines():
         "This shows all infected individuals, whether exposed or infectious.",
         "fig:trajlines")
 
+def binned_trajectories(h5f):
+    binned=np.zeros((200, 4), np.float32)
+    ft=quickpen.FileTrajectories(h5f)
+    cnt=len(ft)
+    for i in range(len(ft)):
+        total, times=ft[i]
+        quickpen.add_to_binned_trajectory(binned, total, times)
+    binned/=cnt
+    logger.debug("binned {0}".format(binned))
+    penplot.prevalence_by_day(binned)
+
+def include_binned():
+    return include_figure("prevalencebyday.pdf", "0.7",
+        "Exposed and susceptible counts, averaged over all realizations "
+        +"in the ensemble. The small horizontal lines indicate that each "
+        +"observation is a daily measurement. Exposed is blue, "
+        +"infectious in green.", "fig:prevalencebyday")
+
 def include_figure(fileglob, scale, caption, label):
     snippet=""
     targets=glob.glob(fileglob)
@@ -167,6 +188,7 @@ def parallel_generate(filename, timeout=10):
       ["python", "report.py", "--file", filename, "--multiples"],
       ["python", "report.py", "--file", filename, "--summary"],
       ["python", "report.py", "--file", filename, "--lines"]
+      ["python", "report.py", "--file", filename, "--binned"]
     ]
     processes=list()
     for t in todo:
@@ -195,6 +217,7 @@ if __name__ == "__main__":
         default="rider.h5", help="data file to read")
     parser.add_function("report", "Build the report")
     parser.add_function("lines", "Write the image of all realizations")
+    parser.add_function("binned", "Average daily prevalence")
     parser.add_function("multiples", "Small multiples graph of one realization")
     parser.add_function("summary", "Several summary graphs")
     parser.add_function("generate", "Create graphs and report")
@@ -209,6 +232,9 @@ if __name__ == "__main__":
     elif args.lines:
         f=h5py.File(filename, "r")
         trajectory_lines(f)
+    elif args.binned:
+        f=h5py.File(filename, "r")
+        binned_trajectories(f)
     elif args.multiples:
         f=h5py.File(filename, "r")
         single_trajectory_small_multiples(f)
@@ -217,4 +243,5 @@ if __name__ == "__main__":
         summaries(f)
     elif args.generate:
         parallel_generate(filename)
+        make_report(filename)
 

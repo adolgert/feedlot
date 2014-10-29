@@ -88,6 +88,17 @@ def total_trajectory(h5f, traj_dset_name):
     return seir, times
 
 
+def add_to_binned_trajectory(binned, seir, times):
+    time_idx=0
+    cur_val=seir[time_idx,:]
+    for bin_idx in range(binned.shape[0]):
+        while time_idx<len(times) and times[time_idx]<bin_idx:
+            cur_val=seir[time_idx,:]
+            time_idx+=1
+        binned[bin_idx,:]+=cur_val
+    return binned
+
+
 class total_infected(object):
     def __init__(self, cnt):
         self.data=np.zeros(cnt, np.int)
@@ -146,6 +157,8 @@ class FileTrajectories(object):
         return len(self.trajectory_names)
 
     def __getitem__(self, intkey):
+        if self.trajectory_names is None:
+            self.trajectory_names=trajectories(self.h5f)
         total, times=total_trajectory(self.h5f, self.trajectory_names[intkey])
         return total, times
 
