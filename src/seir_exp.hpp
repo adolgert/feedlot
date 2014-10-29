@@ -18,6 +18,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     std::map<ModelOptions,bool> opts,
     const PenContactGraph& pen_graph,
     std::shared_ptr<PenTrajectoryObserver> observer,
+    std::shared_ptr<TrajectoryObserver> traj_observer,
     RandGen& rng);
 
 #endif

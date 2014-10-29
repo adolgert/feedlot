@@ -20,6 +20,7 @@ class HDFFile {
   hid_t trajectory_group_;
   std::string filename_;
   bool open_;
+  unsigned int comp_cnt_;
   mutable std::mutex single_writer_;
  public:
   using TrajectoryType=std::vector<TrajectoryEntry>;
@@ -114,7 +115,7 @@ bool HDFFile::SaveTrajectory(const Params& params,
   assert(open_);
   hsize_t dims[2];
   dims[0]=trajectory.size();
-  dims[1]=4;
+  dims[1]=comp_cnt_;
   hid_t dataspace_id=H5Screate_simple(2, dims, NULL);
 
   std::stringstream dset_name;
@@ -128,12 +129,14 @@ bool HDFFile::SaveTrajectory(const Params& params,
   }
 
   if (trajectory.size()>0) {
+    int comp_cnt_=5;
     std::vector<int64_t> vals(dims[0]*dims[1]);
     for (size_t i=0; i<dims[0]; ++i) {
-      vals[4*i+0]=trajectory[i].s;
-      vals[4*i+1]=trajectory[i].e;
-      vals[4*i+2]=trajectory[i].i;
-      vals[4*i+3]=trajectory[i].r;
+      vals[comp_cnt_*i+0]=trajectory[i].s;
+      vals[comp_cnt_*i+1]=trajectory[i].e;
+      vals[comp_cnt_*i+2]=trajectory[i].i;
+      vals[comp_cnt_*i+3]=trajectory[i].r;
+      vals[comp_cnt_*i+4]=trajectory[i].c;
     }
     herr_t write_status=H5Dwrite(dataset_id, H5T_STD_I64LE,
       H5S_ALL, H5S_ALL, H5P_DEFAULT, &vals[0]);
@@ -288,14 +291,15 @@ bool HDFFile::SavePenTrajectory(const Params& params,
   H5Sclose(dspace_id);
 
   // This is the set of initial pen values.
-  std::vector<hsize_t> idims{initial.size(),4};
-  std::vector<int64_t> initial_data(initial.size()*4);
+  std::vector<hsize_t> idims{initial.size(),comp_cnt_};
+  std::vector<int64_t> initial_data(initial.size()*comp_cnt_);
   size_t eidx{0};
   for (auto entry : initial) {
-    initial_data[4*eidx]=initial[eidx].s;
-    initial_data[4*eidx+1]=initial[eidx].e;
-    initial_data[4*eidx+2]=initial[eidx].i;
-    initial_data[4*eidx+3]=initial[eidx].r;
+    initial_data[comp_cnt_*eidx]=initial[eidx].s;
+    initial_data[comp_cnt_*eidx+1]=initial[eidx].e;
+    initial_data[comp_cnt_*eidx+2]=initial[eidx].i;
+    initial_data[comp_cnt_*eidx+3]=initial[eidx].r;
+    initial_data[comp_cnt_*eidx+4]=initial[eidx].c;
     ++eidx;
   }
   BOOST_LOG_TRIVIAL(debug)<<"Create initial value dataspace";

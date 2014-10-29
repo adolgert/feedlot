@@ -9,13 +9,15 @@ struct TrajectoryEntry {
   int64_t e;
   int64_t i;
   int64_t r;
+  int64_t c;
   double t;
-  TrajectoryEntry(int64_t s, int64_t e, int64_t i, int64_t r, double t)
-  : s(s), e(e), i(i), r(r), t(t) {}
+  TrajectoryEntry(int64_t s, int64_t e, int64_t i, int64_t r, int64_t c, double t)
+  : s(s), e(e), i(i), r(r), c(c), t(t) {}
   TrajectoryEntry()=default;
 };
 
 class TrajectoryObserver {
+ public:
   virtual void Step(TrajectoryEntry sirt)=0;
   virtual const std::vector<TrajectoryEntry>& Trajectory() =0;
 };
@@ -28,7 +30,7 @@ struct PenTrajectory {
 };
 
 class PenTrajectoryObserver {
-public:
+ public:
   virtual void SetInitial(const std::vector<TrajectoryEntry>& init)=0;
   virtual void Step(PenTrajectory pt)=0;
 };
@@ -57,7 +59,7 @@ class PercentTrajectorySave : public TrajectoryObserver
   int64_t threshhold_{0};
   double percent_{0.0001};
 
-  TrajectoryEntry last_{0,0,0,0,0.0};
+  TrajectoryEntry last_{0,0,0,0,0,0.0};
   std::vector<TrajectoryEntry> trajectory_;
  public:
   PercentTrajectorySave();

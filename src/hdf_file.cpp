@@ -44,7 +44,8 @@ herr_t TrajectoryNames(hid_t group_id, const char* relative_name,
 
 
 HDFFile::HDFFile(const std::string& filename)
-: filename_(filename), open_(false), file_id_(0), trajectory_group_(0)
+: filename_(filename), open_(false), file_id_(0), trajectory_group_(0),
+  comp_cnt_{5}
 {}
 
 HDFFile::~HDFFile() {}
@@ -242,7 +243,7 @@ std::vector<std::string> HDFFile::Trajectories() const {
 std::vector<int64_t> HDFFile::InitialValues() const {
   hid_t attr1_id=H5Aopen_by_name(file_id_, "/trajectory",
       "Initial Values", H5P_DEFAULT, H5P_DEFAULT);
-  auto siri=std::vector<int64_t>(4, 0);
+  auto siri=std::vector<int64_t>(comp_cnt_, 0);
 
   herr_t at1status=H5Aread(attr1_id, H5T_NATIVE_LONG, &siri[0]);
   if (at1status<0) {
@@ -354,13 +355,13 @@ std::vector<TrajectoryEntry> HDFFile::LoadTrajectoryFromPens(
 
   std::vector<TrajectoryEntry> trajectory{dims[0]+1};
   auto initial_pen=LoadInitialPen(dataset_name);
-  std::vector<int64_t> initial{4};
-  initial.assign(4, 0);
+  std::vector<int64_t> initial{comp_cnt_};
+  initial.assign(comp_cnt_, 0);
   for (size_t ip=0; ip<initial_pen.size(); ++ip) {
-    for (size_t cidx=0; cidx<4; ++cidx) {
+    for (size_t cidx=0; cidx<comp_cnt_; ++cidx) {
       initial[cidx]+=initial_pen[ip+cidx];
     }
-    ip+=4;
+    ip+=comp_cnt_;
   }
 
   trajectory[0].s=initial[0];
@@ -381,6 +382,10 @@ std::vector<TrajectoryEntry> HDFFile::LoadTrajectoryFromPens(
       case 2:
         initial[2]-=1;
         initial[3]+=1;
+        initial[4]-=1;
+        break;
+      case 3:
+        initial[4]+=1;
         break;
       default:
         BOOST_LOG_TRIVIAL(error)<<"Unknown transition type."
@@ -391,6 +396,7 @@ std::vector<TrajectoryEntry> HDFFile::LoadTrajectoryFromPens(
     trajectory[i+1].e=initial[1];
     trajectory[i+1].i=initial[2];
     trajectory[i+1].r=initial[3];
+    trajectory[i+1].c=initial[4];
     trajectory[i+1].t=events[i].time;
   }
 

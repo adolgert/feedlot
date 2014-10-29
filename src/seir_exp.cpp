@@ -404,8 +404,9 @@ BuildSystem(int64_t individual_cnt, const std::map<ModelOptions,bool>& opts,
 template<typename GSPN, typename SIRState>
 struct SEIROutput
 {
-  using StateArray=std::array<int64_t,4>;
-  std::shared_ptr<PenTrajectoryObserver> observer_;
+  using StateArray=std::array<int64_t,5>;
+  std::shared_ptr<PenTrajectoryObserver> pen_observer_;
+  std::shared_ptr<TrajectoryObserver> traj_observer_;
   const GSPN& gspn_;
   StateArray seir_;
   int64_t step_cnt{0};
@@ -413,15 +414,18 @@ struct SEIROutput
   int64_t per_pen_;
 
   SEIROutput(const GSPN& gspn,
-      std::shared_ptr<PenTrajectoryObserver> observer,
+      std::shared_ptr<PenTrajectoryObserver> pen_observer,
+      std::shared_ptr<TrajectoryObserver> traj_observer,
       const std::vector<int64_t>& initial, int64_t pen_cnt,
       int64_t per_pen)
-  : gspn_(gspn), observer_(observer), pen_cnt_(pen_cnt), per_pen_(per_pen)
+  : gspn_(gspn), pen_observer_(pen_observer), traj_observer_(traj_observer),
+    pen_cnt_(pen_cnt), per_pen_(per_pen)
   {
     std::get<0>(seir_)=initial[0];
     std::get<1>(seir_)=initial[1];
     std::get<2>(seir_)=initial[2];
     std::get<3>(seir_)=initial[3];
+    std::get<4>(seir_)=initial[4];
   };
 
   void operator()(const SIRState& state) {
@@ -429,6 +433,7 @@ struct SEIROutput
       this->initial(state);
     }
 
+    enum : int64_t { s, e, i, r, n, c };
     auto transition=gspn_.VertexTransition(state.last_transition);
     auto individual=transition.i;
     auto pen=pen_of(individual, per_pen_);
@@ -449,10 +454,20 @@ struct SEIROutput
       case TransitionType::recover: // recover
         get<2>(seir_)-=1;
         get<3>(seir_)+=1;
+        {
+          auto clinical_place=gspn_.PlaceVertex({individual, 0, c});
+          if (Length<0>(state.marking, clinical_place)>0) {
+            get<4>(seir_)-=1;
+          } else {
+            // Add a transition for the missing clinical step.
+            pen_observer_->Step({individual, pen, 3, state.CurrentTime()});
+          }
+        }
         compartment=2;
         break;
       case TransitionType::subclinical:
-        compartment=-1;
+        get<4>(seir_)+=1;
+        compartment=3;
         break;
       default:
         assert("unknown transition kind");
@@ -461,7 +476,10 @@ struct SEIROutput
 
     ++step_cnt;
     if (compartment>=0) {
-      observer_->Step({individual, pen, compartment, state.CurrentTime()});
+      pen_observer_->Step({individual, pen, compartment, state.CurrentTime()});
+      traj_observer_->Step({std::get<0>(seir_), std::get<1>(seir_), 
+        std::get<2>(seir_), std::get<3>(seir_), std::get<4>(seir_),
+        state.CurrentTime()});
     }
   }
 
@@ -479,7 +497,7 @@ struct SEIROutput
       seir_init_[pen_idx].r=Length<0>(state.marking, splace);
       seir_init_[pen_idx].t=0;
     }
-    observer_->SetInitial(seir_init_);
+    pen_observer_->SetInitial(seir_init_);
   }
 
   void final(const SIRState& state) {
@@ -494,6 +512,7 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     std::map<ModelOptions,bool> opts,
     const PenContactGraph& pen_graph,
     std::shared_ptr<PenTrajectoryObserver> observer,
+    std::shared_ptr<TrajectoryObserver> traj_observer,
     RandGen& rng)
 {
   int64_t individual_cnt=std::accumulate(seir_cnt.begin(), seir_cnt.end(),
@@ -548,8 +567,8 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   using Dynamics=StochasticDynamics<SIRGSPN,SIRState,RandGen>;
   Dynamics dynamics(gspn, {&competing});
 
-  SEIROutput<SIRGSPN,SIRState> output_function(gspn, observer, seir_cnt,
-      pen_cnt, animals_per_pen);
+  SEIROutput<SIRGSPN,SIRState> output_function(gspn, observer, traj_observer,
+      seir_cnt, pen_cnt, animals_per_pen);
 
   dynamics.Initialize(&state, &rng);
 

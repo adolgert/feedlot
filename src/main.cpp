@@ -180,11 +180,14 @@ int main(int argc, char *argv[]) {
     std::shared_ptr<PenTrajectorySave> observer=0;
     observer=std::make_shared<PenTrajectorySave>(
       static_cast<size_t>(individual_cnt));
+    auto trajectory_save=std::make_shared<TrajectorySave>(4*individual_cnt);
 
     SEIR_run(end_time, seir_init, parameters, model_opts, pen_graph,
-        observer, rng);
+        observer, trajectory_save, rng);
     file.SavePenTrajectory(parameters, single_seed, idx, observer->Trajectory(),
       observer->PenInitial());
+    file.SaveTrajectory(parameters, single_seed, idx,
+        trajectory_save->Trajectory());
   };
 
   afidd::smv::Ensemble<decltype(runnable),RandGen> ensemble(runnable, thread_cnt,
