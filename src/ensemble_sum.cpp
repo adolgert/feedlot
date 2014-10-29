@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
   int weight_kind_cnt=1;
 
   int sample_dimension=2;
-  double h=4.0; // About 100x100 is domain.
+  double h=2.0; // About 100x100 is domain.
   double epsilon=1e-2;
 
   std::vector<double> interpolant(weight_kind_cnt*target_cnt, 0.0);

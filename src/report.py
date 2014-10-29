@@ -68,9 +68,11 @@ def write_report(info, outfile):
     info["EndTime"]=include_end_time()
     info["TotalInfected"]=include_total_infected()
     info["BinnedPrevalence"]=include_binned()
+    info["SmallMultiples"]=include_multiples()
 
     text="""\\documentclass{{article}}
 \\usepackage{{graphicx}}
+\\usepackage[margin=0.5in]{{geometry}}
 \\usepackage{{hyperref}}
 \\begin{{document}}
 \\title{{Report on {Title}}}
@@ -87,6 +89,8 @@ def write_report(info, outfile):
 {EndTime}
 
 {TotalInfected}
+
+{SmallMultiples}
 
 {BinnedPrevalence}
 
@@ -113,7 +117,14 @@ def summaries(h5f):
     times=all_states_obj.times()
     logger.debug("times shape {0}".format(times.shape))
     penplot.trajectory_density_plot(seir[:,1], times, "Exposed")
-    penplot.trajectory_density_plot(seir[:,2], times, "Infected")
+    penplot.trajectory_density_plot(seir[:,2], times, "Infectious")
+    penplot.trajectory_density_plot(seir[:,1]+seir[:,2], times, "Infected")
+
+def include_multiples():
+    return include_figure("multiples.pdf", "0.7",
+        "Each subgraph is a separate pen, showing exposed and infected "
+        +"over time. This is one sample realization from the file.",
+        "fig:smallmultiples");
 
 def include_end_time():
     return include_figure("end_time_hist.pdf", "0.7",
@@ -187,7 +198,7 @@ def parallel_generate(filename, timeout=10):
     todo=[
       ["python", "report.py", "--file", filename, "--multiples"],
       ["python", "report.py", "--file", filename, "--summary"],
-      ["python", "report.py", "--file", filename, "--lines"]
+      ["python", "report.py", "--file", filename, "--lines"],
       ["python", "report.py", "--file", filename, "--binned"]
     ]
     processes=list()
@@ -244,4 +255,4 @@ if __name__ == "__main__":
     elif args.generate:
         parallel_generate(filename)
         make_report(filename)
-
+        subprocess.call(["latexmk", "-pdf", "report"])

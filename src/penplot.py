@@ -98,9 +98,10 @@ def trajectory_density_plot(m1, m2, name):
     kernel = scipy.stats.gaussian_kde(values)
     Z = np.reshape(kernel(positions).T, X.shape)
 
+    plt.clf()
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    ax.imshow(Z, cmap=plt.cm.gist_earth_r,
+    ax.imshow(Z, cmap=plt.cm.YlGn, origin="lower",
               extent=[xmin, xmax, ymin, ymax])
     # ax.plot(m1, m2, 'k.', markersize=1)
     ax.set_xlim([xmin, xmax])
