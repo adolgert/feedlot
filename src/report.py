@@ -74,6 +74,7 @@ def write_report(info, outfile):
 \\usepackage{{graphicx}}
 \\usepackage[margin=0.5in]{{geometry}}
 \\usepackage{{hyperref}}
+\\usepackage{{palatino}}
 \\begin{{document}}
 \\title{{Report on {Title}}}
 \\date{{\\today}}
@@ -191,15 +192,16 @@ def make_report(filename):
     write_report(info, outfile)
 
 
-def parallel_generate(filename, timeout=10):
+def parallel_generate(filename, timeout=3.14e7):
     '''
     Timeout in minutes.
     '''
+    pyex=sys.executable
     todo=[
-      ["python", "report.py", "--file", filename, "--multiples"],
-      ["python", "report.py", "--file", filename, "--summary"],
-      ["python", "report.py", "--file", filename, "--lines"],
-      ["python", "report.py", "--file", filename, "--binned"]
+      [pyex, "report.py", "--file", filename, "--multiples"],
+      [pyex, "report.py", "--file", filename, "--summary"],
+      [pyex, "report.py", "--file", filename, "--lines"],
+      [pyex, "report.py", "--file", filename, "--binned"]
     ]
     processes=list()
     for t in todo:

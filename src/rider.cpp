@@ -213,7 +213,7 @@ public:
 
   virtual void Fire(UserState& s, Local& lm, double t0,
       RandGen& rng) override {
-    SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire infectious " <<individual_
+    SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire infectious "
         << " marking " << lm);
     lm.template Move<0, 0>(0, 2, 1); // Change the individual
     lm.template Move<0, 0>(1, 3, 1); // Change the summary count
