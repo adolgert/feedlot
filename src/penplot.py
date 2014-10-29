@@ -106,6 +106,9 @@ def trajectory_density_plot(m1, m2, name):
     # ax.plot(m1, m2, 'k.', markersize=1)
     ax.set_xlim([xmin, xmax])
     ax.set_ylim([ymin, ymax])
+    ax.set_xlabel("Time [days]")
+    ax.set_ylabel("Individuals [count]")
+    ax.set_title("Kernel Density Estimate of {0}".format(name))
     plt.savefig("trajectory_density_{0}.pdf".format(name), format="pdf")
 
 

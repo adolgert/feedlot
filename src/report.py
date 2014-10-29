@@ -1,5 +1,6 @@
 import re
 import math
+import sys
 import time
 import os
 import glob
@@ -69,6 +70,7 @@ def write_report(info, outfile):
     info["TotalInfected"]=include_total_infected()
     info["BinnedPrevalence"]=include_binned()
     info["SmallMultiples"]=include_multiples()
+    info["TrajectoryDensityInfected"]=include_trajectory_density()
 
     text="""\\documentclass{{article}}
 \\usepackage{{graphicx}}
@@ -87,13 +89,16 @@ def write_report(info, outfile):
 
 {TrajectoryLines}
 
+{TrajectoryDensityInfected}
+
+{BinnedPrevalence}
+
 {EndTime}
 
 {TotalInfected}
 
 {SmallMultiples}
 
-{BinnedPrevalence}
 
 \\end{{document}}
 """.format(**info)
@@ -120,6 +125,13 @@ def summaries(h5f):
     penplot.trajectory_density_plot(seir[:,1], times, "Exposed")
     penplot.trajectory_density_plot(seir[:,2], times, "Infectious")
     penplot.trajectory_density_plot(seir[:,1]+seir[:,2], times, "Infected")
+
+def include_trajectory_density():
+    return include_figure("trajectory_density_Infected.pdf", "0.7",
+        "This smooths over all realizations in the ensemble in order "
+        +"to create an estimate of the probability distribution "
+        +"for finding the system at a given state and time.",
+        "fig:trajectorydensityinfected")
 
 def include_multiples():
     return include_figure("multiples.pdf", "0.7",
