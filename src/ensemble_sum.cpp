@@ -8,6 +8,20 @@
 namespace smv=afidd::smv;
 using namespace smv;
 
+void watermark_for_orientation(std::vector<double>& interpolant,
+    int hres, int vres) {
+  for (int vwidx=0; vwidx<vres/10; ++vwidx) {
+    for (int hwidx=0; hwidx<hres/10; ++hwidx) {
+      interpolant[vwidx*hres+hwidx]=1.0;
+    }
+  }
+  for (int vsidx=vres/10; vsidx<vres; ++vsidx) {
+    for (int hsidx=0; hsidx<hres/10; ++hsidx) {
+      interpolant[vsidx*hres+hsidx]=0.5;
+    }
+  }
+}
+
 int main(int argc, char* argv[]) {
   namespace po=boost::program_options;
   po::options_description desc("Generate ensemble plot from datasets.");
@@ -47,26 +61,32 @@ int main(int argc, char* argv[]) {
     BOOST_LOG_TRIVIAL(debug)<<"Loading file "<<traj_name;
     auto trajectory=file.LoadTrajectoryFromPens(traj_name);
     for (const auto& entry : trajectory) {
-      sei[0][2*entry_idx]=days_per_individual*entry.s;
-      sei[1][2*entry_idx]=days_per_individual*entry.e;
-      sei[2][2*entry_idx]=days_per_individual*entry.i;
+      // Time is the x, the first dimension.
       for (int64_t st_idx=0; st_idx<3; ++st_idx) {
-        sei[st_idx][2*entry_idx+1]=entry.t;
+        sei[st_idx][2*entry_idx]=entry.t;
       }
+      sei[0][2*entry_idx+1]=days_per_individual*entry.s;
+      sei[1][2*entry_idx+1]=days_per_individual*entry.e;
+      sei[2][2*entry_idx+1]=days_per_individual*entry.i;
       if (entry.t>max_time) max_time=entry.t;
       ++entry_idx;
     }
   }
 
-  int hres=100;
+  int hres=std::max(static_cast<int>(std::ceil(max_time)), 100);
   int vres=100;
+  BOOST_LOG_TRIVIAL(info)<<"Maximum time "<<max_time << " horizontal "
+    << hres << " vertical " << vres;
   int target_cnt=hres*vres;
   std::vector<double> target(2*target_cnt, 0.0);
   for (int vidx=0; vidx<vres; ++vidx) {
     for (int hidx=0; hidx<hres; ++hidx) {
-      target[2*(vidx*hres+hidx)]=hidx*(max_time/hres);
+      int pixel=vidx*hres+hidx;
+      // time
+      target[2*pixel]=hidx*(max_time/hres);
+      // count of individuals.
       // days_per_individual b/c we gave the routine a rescaled # of individuals
-      target[2*(vidx*hres+hidx)+1]=
+      target[2*pixel+1]=
           days_per_individual*vidx*(total/static_cast<double>(vres));
     }
   }
@@ -82,6 +102,8 @@ int main(int argc, char* argv[]) {
   figtree(sample_dimension, target_cnt, target_cnt, weight_kind_cnt,
       &sei[2][0], h, &weight[0], &target[0], epsilon, &interpolant[0]);
 
+  //watermark_for_orientation(interpolant, hres, vres);
+  
   file.Close();
 
   HDFFile out("image.h5");

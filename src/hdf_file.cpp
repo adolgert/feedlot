@@ -430,8 +430,10 @@ bool HDFFile::Save2DPDF(const std::vector<double>& interpolant,
   Write1DFloat(image_group, y, ystr.str());
 
   hsize_t dims[2];
-  dims[0]=x.size();
-  dims[1]=y.size();
+  dims[0]=y.size();
+  dims[1]=x.size();
+  BOOST_LOG_TRIVIAL(debug)<<"Saving ensemble with dims "
+      <<dims[0]<<" "<<dims[1];
   hid_t dspace=H5Screate_simple(2, dims, NULL);
   hid_t ds_id=H5Dcreate(image_group, name.c_str(), H5T_IEEE_F64LE,
       dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);

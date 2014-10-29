@@ -63,6 +63,7 @@ def small_multiples(seir_pen, times_pen, obs_pen, column_cnt):
 
 
 def end_time_plot(end_times):
+    plt.clf()
     end_times.sort()
     cnt=len(end_times)
 
@@ -75,6 +76,7 @@ def end_time_plot(end_times):
     plt.savefig("end_time_hist.pdf", format="pdf")
 
 def total_infected_plot(total_infected):
+    plt.clf()
     total_infected.sort()
     cnt=len(total_infected)
     n, bins, patches=plt.hist(total_infected, 40, normed=1,
@@ -112,10 +114,10 @@ def plot_trajectory_lines(file_trajectories):
     for i in range(cnt):
         total, times=file_trajectories[i]
         infected=total[:,1]+total[:,2] # e + i
-        plt.plot(times, infected, alpha=0.2, color="green")
+        plt.plot(times, infected, alpha=20/cnt, color="green")
 
     plt.xlabel("Time [days]")
-    plt.ylabel("Probability")
+    plt.ylabel("Individuals [count]")
     plt.title("Exposed and Infectious for Multiple Trajectories")
     plt.savefig("trajectory_lines.pdf", format="pdf")
     plt.clf()

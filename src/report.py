@@ -1,6 +1,11 @@
 import re
 import math
+import time
+import os
+import glob
+import os.path
 import logging
+import subprocess
 import xml.etree.ElementTree as ET
 import numpy as np
 import scipy.stats
@@ -8,6 +13,7 @@ import h5py
 import matplotlib.pyplot as plt
 import quickpen
 import penplot
+import time
 from default_parser import DefaultArgumentParser
 
 logger=logging.getLogger(__file__)
@@ -58,8 +64,12 @@ def write_report(info, outfile):
     provenance_table.append("Unique Tag & {0} \\\\".format(info["UUID"]))
     provenance_table.append("\\end{tabular}")
     info["CodeTraitsTable"]="\n".join(provenance_table)
+    info["TrajectoryLines"]=include_trajectory_lines()
+    info["EndTime"]=include_end_time()
+    info["TotalInfected"]=include_total_infected()
 
     text="""\\documentclass{{article}}
+\\usepackage{{graphicx}}
 \\usepackage{{hyperref}}
 \\begin{{document}}
 \\title{{Report on {Title}}}
@@ -71,6 +81,12 @@ def write_report(info, outfile):
 
 {CodeTraitsTable}
 
+{TrajectoryLines}
+
+{EndTime}
+
+{TotalInfected}
+
 \\end{{document}}
 """.format(**info)
     f=open(outfile, "w")
@@ -81,6 +97,7 @@ def single_trajectory_small_multiples(h5f):
     dsetname=quickpen.trajectories(h5f)[0]
     tr,times,obs=quickpen.per_pen_trajectory(h5f, dsetname)
     penplot.small_multiples(tr, times, obs, 4)
+
 
 def summaries(h5f):
     aggregate=quickpen.summary_of_ensemble(h5f, 50)
@@ -95,23 +112,109 @@ def summaries(h5f):
     penplot.trajectory_density_plot(seir[:,1], times, "Exposed")
     penplot.trajectory_density_plot(seir[:,2], times, "Infected")
 
+def include_end_time():
+    return include_figure("end_time_hist.pdf", "0.7",
+        "Each bar shows a count of how many realizations completed "+
+        "at a given time.", "fig:endtimes")
+
+def include_total_infected():
+    return include_figure("total_infected_hist.pdf", "0.7",
+        "Each bar shows the total number of realizations whose "
+        "infections fell in the given range", "fig:totalinfected")
+
 def trajectory_lines(h5f):
     penplot.plot_trajectory_lines(quickpen.FileTrajectories(h5f))
 
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    parser=DefaultArgumentParser(description="Quick look at an H5 file")
-    parser.add_argument("--file", dest="file", action="store",
-        default="rider.h5", help="data file to read")
+def include_trajectory_lines():
+    return include_figure("trajectory_lines.pdf", "0.7",
+        "Each line represents a separate realization from the simulation."+
+        "This shows all infected individuals, whether exposed or infectious.",
+        "fig:trajlines")
 
-    args=parser.parse_args()
+def include_figure(fileglob, scale, caption, label):
+    snippet=""
+    targets=glob.glob(fileglob)
+    blanks={"scale" : scale, "caption" : caption}
+    for idx, f in enumerate(targets):
+        blanks["filename"]=f
+        if len(targets)>1:
+            blanks["label"]="{0}{1}".format(label, idx)
+        else:
+            blanks["label"]=label
+        snippet=snippet+"""\\begin{{figure}}
+\\centerline{{\\includegraphics[scale={scale}]{{{filename}}}}}
+\\caption{{{caption}\\label{{{label}}}}}
+\\end{{figure}}
+""".format(**blanks)
 
-    filename=args.file
+    return snippet
+
+
+def make_report(filename):
     f=h5py.File(filename, "r")
     info=dict()
     info.update(metadata(f))
     info["Title"]="{0}--{1}".format(filename, info["UUID"][0:5])
     outfile="report.tex"
     write_report(info, outfile)
-    # if not parser.any_function():
-    #     parser.print_help()
+
+
+def parallel_generate(filename, timeout=10):
+    '''
+    Timeout in minutes.
+    '''
+    todo=[
+      ["python", "report.py", "--file", filename, "--multiples"],
+      ["python", "report.py", "--file", filename, "--summary"],
+      ["python", "report.py", "--file", filename, "--lines"]
+    ]
+    processes=list()
+    for t in todo:
+        processes.append(subprocess.Popen(t))
+    interval=2 # seconds
+    for check in range(int(timeout*60/interval)):
+        done=list()
+        for idx, proc in enumerate(processes):
+            if proc.poll()==0:
+                done.append(idx)
+                logging.info("{0} completed".format(todo[idx][4]))
+        done.reverse()
+        for d in done:
+            processes.pop(d)
+            todo.pop(d)
+        if len(processes)==0:
+            return True
+        time.sleep(interval)
+    return False
+
+
+if __name__ == "__main__":
+    #logging.basicConfig(level=logging.INFO)
+    parser=DefaultArgumentParser(description="Quick look at an H5 file")
+    parser.add_argument("--file", dest="file", action="store",
+        default="rider.h5", help="data file to read")
+    parser.add_function("report", "Build the report")
+    parser.add_function("lines", "Write the image of all realizations")
+    parser.add_function("multiples", "Small multiples graph of one realization")
+    parser.add_function("summary", "Several summary graphs")
+    parser.add_function("generate", "Create graphs and report")
+
+    args=parser.parse_args()
+
+    filename=args.file
+    if args.report:
+        make_report(filename)
+        # if not parser.any_function():
+        #     parser.print_help()
+    elif args.lines:
+        f=h5py.File(filename, "r")
+        trajectory_lines(f)
+    elif args.multiples:
+        f=h5py.File(filename, "r")
+        single_trajectory_small_multiples(f)
+    elif args.summary:
+        f=h5py.File(filename, "r")
+        summaries(f)
+    elif args.generate:
+        parallel_generate(filename)
+
