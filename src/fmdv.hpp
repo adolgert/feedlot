@@ -30,6 +30,10 @@ void FMDV_Mardones_Nonexponential(
   // Rate (not scale=1/rate)
   parameters.emplace_back(MyParm{ParamClass::GammaBeta, "gammabeta", 1/1.107,
     "recovery rate beta"});
+  parameters.emplace_back(MyParm{ParamClass::SubClinicalAlpha, "scalpha",
+    1.22, "Subclinical period shape"});
+  parameters.emplace_back(MyParm{ParamClass::SubClinicalBeta, "scbeta",
+    1.672, "Subclinical period scale"});
 }
 
 

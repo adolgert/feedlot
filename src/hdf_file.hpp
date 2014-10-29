@@ -273,6 +273,9 @@ bool HDFFile::SavePenTrajectory(const Params& params,
   for (auto& p : params) {
     hid_t attr0_id=H5Acreate2(dataset_group_id, p.name.c_str(), H5T_IEEE_F64LE,
       dspace_id, H5P_DEFAULT, H5P_DEFAULT);
+    if (attr0_id<0) {
+      BOOST_LOG_TRIVIAL(error)<<"Could not create attribute for "<<p.name;
+    }
     herr_t atstatus=H5Awrite(attr0_id, H5T_NATIVE_DOUBLE, &p.value);
     if (atstatus<0) {
       BOOST_LOG_TRIVIAL(error)<<"Could not write attribute "<<p.name;

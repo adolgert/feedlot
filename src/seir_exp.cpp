@@ -279,6 +279,34 @@ class RecoverExponential : public SIRTransition
   }
 };
 
+
+// Now make specific transitions.
+class SubClinical : public SIRTransition
+{
+  virtual std::pair<bool, std::unique_ptr<Dist>>
+  Enabled(const UserState& s, const Local& lm,
+    double te, double t0, RandGen& rng) override {
+    int64_t N=lm.template Length<0>(0);
+    int64_t I=lm.template Length<0>(1);
+    if (N>0 && I>0) {
+      double a=s.params.at(SIRParam::SubClinicalAlpha);
+      double b=s.params.at(SIRParam::SubClinicalBeta);
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
+      return {true, std::unique_ptr<GammaDistribution<RandGen>>(
+        new GammaDistribution<RandGen>(a, b, te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
+      return {false, std::unique_ptr<Dist>(nullptr)};
+    }
+  }
+
+  virtual void Fire(UserState& s, Local& lm, double t0,
+      RandGen& rng) override {
+    //SMVLOG(BOOST_LOG_TRIVIAL(trace) << "Fire recover " << lm);
+    lm.template Move<0, 0>(0, 2, 1);
+  }
+};
+
 // The GSPN itself.
 using SIRGSPN=
     ExplicitTransitions<SIRPlace, SIRTKey, Local, RandGen, WithParams>;
@@ -297,16 +325,14 @@ BuildSystem(int64_t individual_cnt, const std::map<ModelOptions,bool>& opts,
   assert((individual_cnt % per_pen)==0);
   BOOST_LOG_TRIVIAL(info) << "individuals "<<individual_cnt<<" pens "<<pen_cnt
       <<" per pen "<<per_pen;
-  enum : int64_t { s, e, i, r };
+  enum : int64_t { s, e, i, r, n, c };
 
   const int64_t location=0;
   for (int64_t ap_idx=0; ap_idx<individual_cnt; ++ap_idx) {
-    for (int64_t place : std::vector<int64_t>{s, e, i, r}) {
+    for (int64_t place : std::vector<int64_t>{s, e, i, r, n, c}) {
       bg.AddPlace({ap_idx, location, place}, 0);
     }
   }
-
-  enum : int64_t { none, infect0, infect1, infect2, infectious, recover };
 
   for (int64_t ind_idx=0; ind_idx<individual_cnt; ++ind_idx) {
     std::unique_ptr<SIRTransition> infectious;
@@ -328,6 +354,11 @@ BuildSystem(int64_t individual_cnt, const std::map<ModelOptions,bool>& opts,
     bg.AddTransition({ind_idx, ind_idx, TransitionType::recover},
       {Edge{{ind_idx, location, i}, -1}, Edge{{ind_idx, location, r}, 1}},
       std::move(recover)
+      );
+    bg.AddTransition({ind_idx, ind_idx, TransitionType::subclinical},
+      {Edge{{ind_idx, location, n}, -1}, Edge{{ind_idx, location, i}, -1},
+       Edge{{ind_idx, location, c}, 1}},
+      std::unique_ptr<SIRTransition>(new SubClinical())
       );
   }
 
@@ -420,13 +451,18 @@ struct SEIROutput
         get<3>(seir_)+=1;
         compartment=2;
         break;
+      case TransitionType::subclinical:
+        compartment=-1;
+        break;
       default:
         assert("unknown transition kind");
         break;
     }
 
     ++step_cnt;
-    observer_->Step({individual, pen, compartment, state.CurrentTime()});
+    if (compartment>=0) {
+      observer_->Step({individual, pen, compartment, state.CurrentTime()});
+    }
   }
 
   void initial(const SIRState& state) {
@@ -484,19 +520,22 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     state.user.params[cp.kind]=value;
   }
 
+  enum : int64_t { s, e, i, r, n, c };
   const int64_t location=0;
-  for (int64_t sir_idx=0; sir_idx<4; ++sir_idx) {
-    for (int64_t sus_idx=0; sus_idx<seir_cnt[sir_idx]; ++sus_idx) {
-      auto place_id=gspn.PlaceVertex({sus_idx, location, sir_idx});
-      Add<0>(state.marking, place_id, IndividualToken{});
-    }
+  for (int64_t sus_idx=0; sus_idx<individual_cnt; ++sus_idx) {
+    auto place_id=gspn.PlaceVertex({sus_idx, location, s});
+    Add<0>(state.marking, place_id, IndividualToken{});
+  }
+  for (int64_t nc_idx=0; nc_idx<individual_cnt; ++nc_idx) {
+    auto nonclinical=gspn.PlaceVertex({nc_idx, location, n});
+    Add<0>(state.marking, nonclinical, IndividualToken{});
   }
   // The goal is to put all latent and infecteds in the same pen.
   int64_t infected_pen=smv::uniform_index(rng, pen_cnt);
   int64_t first_in_pen=animals_per_pen*infected_pen;
   for (int reinit=1; reinit<4; ++reinit) {
     for (int64_t mv_idx=0; mv_idx<seir_cnt[reinit]; ++mv_idx) {
-      auto sus_id=gspn.PlaceVertex({first_in_pen, location, 0});
+      auto sus_id=gspn.PlaceVertex({first_in_pen, location, s});
       auto to_id=gspn.PlaceVertex({first_in_pen, location, reinit});
       Move<0,0>(state.marking, sus_id, to_id, 1);
       ++first_in_pen;

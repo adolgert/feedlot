@@ -33,6 +33,9 @@ std::ostream& operator<<(std::ostream& os, TransitionType t) {
     case TransitionType::infectbyr :
       os << "ib";
       break;
+    case TransitionType::subclinical :
+      os << "sc";
+      break;
     default:
       os << "unknown transition";
       break;

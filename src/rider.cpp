@@ -349,6 +349,39 @@ class Recover : public BaseTransition
 
 
 // Now make specific transitions.
+template<typename BaseTransition>
+class SubClinical : public BaseTransition
+{
+  virtual std::pair<bool, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>>
+  Enabled(const typename BaseTransition::UserState& s,
+    const typename BaseTransition::LocalMarking& lm,
+    double te, double t0, typename BaseTransition::RandGen& rng) override {
+    int64_t N=lm.template Length<0>(0);
+    int64_t I=lm.template Length<0>(1);
+    if (N>0 && I>0) {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
+      return {true, std::unique_ptr<afidd::smv::GammaDistribution<
+        typename BaseTransition::RandGen>>(
+        new afidd::smv::GammaDistribution<
+        typename BaseTransition::RandGen>(
+          s.params.at(SIRParam::SubClinicalAlpha),
+          s.params.at(SIRParam::SubClinicalBeta), te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
+      return {false, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>(nullptr)};
+    }
+  }
+
+  virtual void Fire(typename BaseTransition::UserState& s,
+    typename BaseTransition::LocalMarking& lm, double t0,
+      typename BaseTransition::RandGen& rng) override {
+    lm.template Move<0, 0>(0, 2, 1); // Move individual to summary count.
+  }
+};
+
+// Now make specific transitions.
 class StartRider : public SIRTransition
 {
   virtual std::pair<bool, std::unique_ptr<Dist>>
@@ -514,12 +547,12 @@ void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
   assert((individual_cnt % per_pen)==0);
   BOOST_LOG_TRIVIAL(info) << "individuals "<<individual_cnt<<" pens "<<pen_cnt
       <<" per pen "<<per_pen;
-  enum : int64_t { s, e, i, r };
+  enum : int64_t { s, e, i, r, n, c };
 
   // 2N
   const int64_t location=0;
   for (int64_t ap_idx=0; ap_idx<individual_cnt; ++ap_idx) {
-    for (int64_t place : std::vector<int64_t>{e, i}) {
+    for (int64_t place : std::vector<int64_t>{e, i, n, c}) {
       bg.AddPlace({ap_idx, location, place}, 0);
     }
   }
@@ -565,6 +598,12 @@ void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
        Edge{{ind_pen, pen_summary, r}, 1}},
       std::move(recover)
       );
+    // Will need to depend on an i in incoming or hospital.
+    bg.AddTransition({ind_idx, ind_idx, TransitionType::subclinical},
+      {Edge{{ind_idx, location, n}, -1},
+       Edge{{ind_idx, location, i}, -1},
+       Edge{{ind_idx, location, c},  1}},
+      std::unique_ptr<SIRTransition>(new SubClinical<SIRTransition>()));
   }
 
   // 2*CE*(N/P) + N + P (for the rider)
@@ -794,6 +833,9 @@ struct SEIROutput
         get<2>(seir_)-=1;
         get<3>(seir_)+=1;
         break;
+      case TransitionType::subclinical: // become clinical
+        affected=false;
+        break;
       default:
         affected=false;
         if (transition.kind!=TransitionType::movers) {
@@ -888,9 +930,9 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   int64_t N=individual_cnt;
   int64_t P=num_vertices(pen_contact);
   int64_t CE=num_edges(pen_contact);
-  int64_t animal_places=2*N + P*4;
+  int64_t animal_places=4*N + P*4;
   int64_t rider_places=(P+1)*2;
-  int64_t individual_transitions=2*N; // infectious and recover.
+  int64_t individual_transitions=3*N; // infectious and recover and clinical.
   int64_t animal_infect=(P+CE*2)*animals_per_pen;
   if (opts[ModelOptions::AllToAllInfection]) {
     animal_infect=P*P*animals_per_pen;
@@ -925,10 +967,13 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   BOOST_LOG_TRIVIAL(debug)<<"Creating susceptibles. "<<individual_cnt;
   const int64_t location=0;
   const int64_t sumloc=1;
+  enum : int64_t { s, e, i, r, n, c };
   for (int64_t sus_idx=0; sus_idx<individual_cnt; ++sus_idx) {
     auto pen_idx=pen_of(sus_idx, animals_per_pen);
-    auto summary_id=gspn.PlaceVertex({pen_idx, sumloc, 0});
+    auto summary_id=gspn.PlaceVertex({pen_idx, sumloc, s});
     Add<0>(state.marking, summary_id, IndividualToken{sus_idx%animals_per_pen});
+    auto notclinical=gspn.PlaceVertex({sus_idx, location, n});
+    Add<0>(state.marking, notclinical, IndividualToken{sus_idx%animals_per_pen});
   }
 
   int64_t infected_pen=0; //smv::uniform_index(rng, pen_cnt);
@@ -943,10 +988,10 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
         Add<0>(state.marking, to_id, IndividualToken{});
       }
       auto move_pen=pen_of(first_in_pen, animals_per_pen);
-      auto sus_pen=gspn.PlaceVertex({move_pen, sumloc, 0});
+      auto sus_pen=gspn.PlaceVertex({move_pen, sumloc, s});
       auto to_pen_place=SIRPlace{move_pen, sumloc, reinit};
       auto to_pen=gspn.PlaceVertex(to_pen_place);
-      Move<0,0>(state.marking, sus_pen, to_pen, 1);
+      Move<0,0>(state.marking, sus_pen, to_pen, e);
       ++first_in_pen;
     }
   }
