@@ -29,20 +29,21 @@ int main(int argc, char *argv[]) {
   // Time is in years.
   using MyParm=TypedParameter<SIRParam>;
   std::vector<MyParm> parameters;
-  parameters.emplace_back(MyParm{SIRParam::Beta0, "beta0", 1/0.26,
+  double beta=0.2485;
+  parameters.emplace_back(MyParm{SIRParam::Beta0, "beta0", beta,
     "density-dependent infection rate within a pen"});
-  parameters.emplace_back(MyParm{SIRParam::Beta1, "beta1", 0.1/0.26,
+  parameters.emplace_back(MyParm{SIRParam::Beta1, "beta1", beta/10,
     "density-dependent infection rate across a fence"});
-  parameters.emplace_back(MyParm{SIRParam::Beta2, "beta2", 0.001/0.26,
+  parameters.emplace_back(MyParm{SIRParam::Beta2, "beta2", beta/1000,
     "density-dependent infection rate to any other animal"});
   parameters.emplace_back(MyParm{SIRParam::RiderMove,
     "ridermove", 1.0/(15/(60*24.0)), "rate for rider to move pens"});
   parameters.emplace_back(MyParm{SIRParam::RiderRecover,
     "riderrecover", 24, "rider recover from carrying disease"});
   parameters.emplace_back(MyParm{SIRParam::RiderInfect,
-    "riderinfect", 1.0/0.26, "rate for rider to infect in pen"});
+    "riderinfect", beta, "rate for rider to infect in pen"});
   parameters.emplace_back(MyParm{SIRParam::RiderGetInfected,
-    "ridergetinfected", 1.0/0.26, "rate for rider to pick up infection"});
+    "ridergetinfected", beta, "rate for rider to pick up infection"});
   FMDV_Mardones_Nonexponential(parameters);
   FMDV_Mardones_Exponential(parameters);
   auto model_opts=model_options();

@@ -60,8 +60,14 @@ def per_pen_trajectory(h5f, traj_dset_name):
             last_obs[pen]=pen_step_idx
     return trajectory, times, last_obs
 
-
 def total_trajectory(h5f, traj_dset_name):
+    dset_base="/trajectory/{0}".format(traj_dset_name)
+    seirc=h5f["{0}/seirtotal".format(dset_base)]
+    times=h5f["{0}/seirtotaltimes".format(dset_base)]
+    return seirc, times
+
+
+def total_trajectoryb(h5f, traj_dset_name):
     initial=initial_values(h5f, traj_dset_name)
     traj_dset=h5f["/trajectory/{0}/trajectory".format(traj_dset_name)]
     seir_start=np.sum(initial, axis=0)

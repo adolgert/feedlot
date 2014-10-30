@@ -32,10 +32,6 @@ class HDFFile {
   bool OpenRead(bool readwrite=true);
   bool Close();
 
-  template<typename TrajType>
-  bool SaveTotalTimes(int seed, int idx,
-    const TrajType& trajectory) const;
-
   template<typename Params>
   bool SaveTrajectory(const Params& params,
     int seed, int idx, const TrajectoryType& trajectory) const;
@@ -60,6 +56,10 @@ class HDFFile {
   std::array<int64_t,2> EventsInFile() const;
   TrajectoryType LoadTrajectoryFromPens(const std::string dataset_name) const;
  private:
+  template<typename TrajType>
+  bool SaveTotalTimes(int seed, int idx,
+    const TrajType& trajectory) const;
+
   bool WriteUUIDTo(hid_t group) const;
   bool Write1DFloat(hid_t group, const std::vector<double>& x,
     const std::string& name) const;
@@ -69,7 +69,7 @@ class HDFFile {
 template<typename TrajType>
 bool HDFFile::SaveTotalTimes(int seed, int idx,
     const TrajType& trajectory) const {
-  std::unique_lock<std::mutex> only_me(single_writer_);
+  // No mutex!
   hsize_t dims[1];
   dims[0]=trajectory.size();
   hid_t dataspace_id=H5Screate_simple(1, dims, NULL);
@@ -85,11 +85,11 @@ bool HDFFile::SaveTotalTimes(int seed, int idx,
   }
 
   if (trajectory.size()>0) {
-    std::vector<int64_t> vals(dims[0]);
+    std::vector<double> vals(dims[0]);
     for (size_t i=0; i<dims[0]; ++i) {
       vals[i]=trajectory[i].t;
     }
-    herr_t write_status=H5Dwrite(dataset_id, H5T_STD_I64LE,
+    herr_t write_status=H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE,
       H5S_ALL, H5S_ALL, H5P_DEFAULT, &vals[0]);
 
     if (write_status<0) {
@@ -166,6 +166,8 @@ bool HDFFile::SaveTrajectory(const Params& params,
 
   herr_t close_status=H5Dclose(dataset_id);
   herr_t space_status=H5Sclose(dataspace_id);
+
+  this->SaveTotalTimes(seed, idx, trajectory);
   return true;
 }
 

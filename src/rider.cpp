@@ -848,6 +848,8 @@ struct SEIROutput
         break;
       case TransitionType::subclinical: // become clinical
         compartment=3;
+        individual=transition.i;
+        affected_pen=pen_of(individual, per_pen_);
         get<4>(seir_)+=1;
         affected=true;
         break;
@@ -919,6 +921,8 @@ struct SEIROutput
       seir_init_[pen_idx].i=Length<0>(state.marking, splace);
       splace=gspn_.PlaceVertex({pen_idx, pen_summary, 3});
       seir_init_[pen_idx].r=Length<0>(state.marking, splace);
+      splace=gspn_.PlaceVertex({pen_idx, pen_summary, 4});
+      seir_init_[pen_idx].c=Length<0>(state.marking, splace);
       seir_init_[pen_idx].t=0;
     }
     pen_observer_->SetInitial(seir_init_);

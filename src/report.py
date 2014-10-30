@@ -43,6 +43,14 @@ def metadata(h5f):
         commandline_options[name]=", ".join(values)
 
     info['CommandlineOptions']=commandline_options
+
+    first_dset=list(h5f["/trajectory"].keys())[0]
+    param_dict=dict()
+    model_params=h5f["trajectory/{0}/seirtotal".format(first_dset)].attrs
+    for k, v in model_params.items():
+        param_dict[k]=v[0]
+    info["parameters"]=param_dict
+
     print(type(attrs['uuid']))
     print(attrs['uuid'])
     print(attrs['uuid'].shape)
@@ -65,6 +73,15 @@ def write_report(info, outfile):
     provenance_table.append("Unique Tag & {0} \\\\".format(info["UUID"]))
     provenance_table.append("\\end{tabular}")
     info["CodeTraitsTable"]="\n".join(provenance_table)
+
+    params_table=["\\begin{tabular}{ll}", "Parameter & Value \\\\ \\hline"]
+    param_names=list(info["parameters"].keys())
+    param_names.sort()
+    for k in param_names:
+        params_table.append("{0} & {1} \\\\".format(k, info["parameters"][k]))
+    params_table.append("\\end{tabular}")
+    info["ParametersTable"]="\n".join(params_table)
+
     info["TrajectoryLines"]=include_trajectory_lines()
     info["EndTime"]=include_end_time()
     info["TotalInfected"]=include_total_infected()
@@ -84,6 +101,8 @@ def write_report(info, outfile):
 \\maketitle
 
 {CommandlineOptionsTable}
+
+{ParametersTable}
 
 {CodeTraitsTable}
 
@@ -252,8 +271,7 @@ if __name__ == "__main__":
     filename=args.file
     if args.report:
         make_report(filename)
-        # if not parser.any_function():
-        #     parser.print_help()
+        subprocess.call(["latexmk", "-pdf", "report"])
     elif args.lines:
         f=h5py.File(filename, "r")
         trajectory_lines(f)
@@ -270,3 +288,5 @@ if __name__ == "__main__":
         parallel_generate(filename)
         make_report(filename)
         subprocess.call(["latexmk", "-pdf", "report"])
+    if not parser.any_function():
+        parser.print_help()

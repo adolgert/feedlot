@@ -21,7 +21,7 @@ MCRAND=$(HOME)/Documents/mcrand
 FIGTREE=$(HOME)/Documents/figtree
 FIGTREE_LIBS=-L$(FIGTREE)/lib -lann_figtree_version -lfigtree
 
-CXX=clang++
+CXX=g++
 # -DSMVHIDELOG -pg
 OPT=-std=c++11 -DHAVE_CONFIG_H -fPIC -g -O2 -DSMVHIDELOG
 INCLUDES=-I$(SEMIMARKOV) -I. -I$(BOOST)/include -I$(HDF5)/include -I$(MCRAND)/include

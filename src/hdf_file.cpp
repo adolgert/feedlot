@@ -3,7 +3,7 @@
 #include <mutex>
 #include <exception>
 #include <fstream>
-#include <strstream>
+#include <sstream>
 #include "boost/uuid/uuid.hpp"
 #include "boost/uuid/uuid_generators.hpp"
 #include "hdf_file.hpp"

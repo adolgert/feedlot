@@ -487,15 +487,20 @@ struct SEIROutput
     const int64_t pen_summary=1;
     std::vector<TrajectoryEntry> seir_init_(pen_cnt_);
     for (int64_t pen_idx=0; pen_idx<pen_cnt_; ++pen_idx) {
-      int64_t splace=gspn_.PlaceVertex({pen_idx, pen_summary, 0});
-      seir_init_[pen_idx].s=Length<0>(state.marking, splace);
-      splace=gspn_.PlaceVertex({pen_idx, pen_summary, 1});
-      seir_init_[pen_idx].e=Length<0>(state.marking, splace);
-      splace=gspn_.PlaceVertex({pen_idx, pen_summary, 2});
-      seir_init_[pen_idx].i=Length<0>(state.marking, splace);
-      splace=gspn_.PlaceVertex({pen_idx, pen_summary, 3});
-      seir_init_[pen_idx].r=Length<0>(state.marking, splace);
-      seir_init_[pen_idx].t=0;
+      for (int64_t ind_idx=pen_idx*per_pen_; ind_idx<(pen_idx+1)*per_pen_;
+          ++ind_idx) {
+        int64_t splace=gspn_.PlaceVertex({ind_idx, 0, 0});
+        seir_init_[pen_idx].s+=Length<0>(state.marking, splace);
+        splace=gspn_.PlaceVertex({ind_idx, 0, 1});
+        seir_init_[pen_idx].e+=Length<0>(state.marking, splace);
+        splace=gspn_.PlaceVertex({ind_idx, 0, 2});
+        seir_init_[pen_idx].i+=Length<0>(state.marking, splace);
+        splace=gspn_.PlaceVertex({ind_idx, 0, 3});
+        seir_init_[pen_idx].r+=Length<0>(state.marking, splace);
+        splace=gspn_.PlaceVertex({ind_idx, 0, 4});
+        seir_init_[pen_idx].c+=Length<0>(state.marking, splace);
+        seir_init_[pen_idx].t=0;
+      }
     }
     pen_observer_->SetInitial(seir_init_);
   }

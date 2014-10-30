@@ -30,11 +30,12 @@ int main(int argc, char *argv[]) {
   // Time is in years.
   using Param=TypedParameter<SIRParam>;
   std::vector<Param> parameters;
-  parameters.emplace_back(Param{SIRParam::Beta0, "beta0", 1/0.26,
+  double beta=0.2485;
+  parameters.emplace_back(Param{SIRParam::Beta0, "beta0", beta,
     "density-dependent infection rate within a pen"});
-  parameters.emplace_back(Param{SIRParam::Beta1, "beta1", 0.1/0.26,
+  parameters.emplace_back(Param{SIRParam::Beta1, "beta1", beta/10,
     "density-dependent infection rate across a fence"});
-  parameters.emplace_back(Param{SIRParam::Beta2, "beta2", 0.001/0.26,
+  parameters.emplace_back(Param{SIRParam::Beta2, "beta2", beta/1000,
     "density-dependent infection rate to any other animal"});
   FMDV_Mardones_Nonexponential(parameters);
   FMDV_Mardones_Exponential(parameters);

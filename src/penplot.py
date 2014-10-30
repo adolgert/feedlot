@@ -4,6 +4,7 @@ import scipy.stats
 import matplotlib.pyplot as plt
 import h5py
 import quickpen
+import lifelines
 
 logger=logging.getLogger(__file__)
 
@@ -34,6 +35,7 @@ def single_trajectory(seir, times):
 
 def small_multiples(seir_pen, times_pen, obs_pen, column_cnt):
     pen_cnt=seir_pen.shape[0]
+    column_cnt=min(pen_cnt, column_cnt)
     row_cnt=pen_cnt//column_cnt;
     max_time=np.max(times_pen)
     max_cnt=np.max(seir_pen)
@@ -65,12 +67,11 @@ def small_multiples(seir_pen, times_pen, obs_pen, column_cnt):
 def end_time_plot(end_times):
     plt.clf()
     end_times.sort()
-    cnt=len(end_times)
-
-    n, bins, patches=plt.hist(end_times, int(cnt/5), normed=1,
-        facecolor='orange', alpha=0.75)
+    kmf=lifelines.KaplanMeierFitter()
+    kmf.fit(end_times, label="Last Recovery")
+    kmf.plot()
     plt.xlabel("End Time [days]")
-    plt.ylabel("Probability")
+    plt.ylabel("Probability of Survival")
     plt.title("Time of Last Recovery")
     plt.grid(True)
     plt.savefig("end_time_hist.pdf", format="pdf")
@@ -78,11 +79,11 @@ def end_time_plot(end_times):
 def total_infected_plot(total_infected):
     plt.clf()
     total_infected.sort()
-    cnt=len(total_infected)
-    n, bins, patches=plt.hist(total_infected, 40, normed=1,
-        facecolor='orange', alpha=0.75)
-    plt.xlabel("Total Infected")
-    plt.ylabel("Probability")
+    kmf=lifelines.KaplanMeierFitter()
+    kmf.fit(total_infected, label="Total Infected")
+    kmf.plot()
+    plt.xlabel("Total Infected [count]")
+    plt.ylabel("Probability of at Least This Many")
     plt.title("Total Infected Over Course")
     plt.grid(True)
     plt.savefig("total_infected_hist.pdf", format="pdf")
