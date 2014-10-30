@@ -159,7 +159,7 @@ def include_trajectory_lines():
         "fig:trajlines")
 
 def binned_trajectories(h5f):
-    binned=np.zeros((200, 4), np.float32)
+    binned=np.zeros((200, 5), np.float32)
     ft=quickpen.FileTrajectories(h5f)
     cnt=len(ft)
     for i in range(len(ft)):

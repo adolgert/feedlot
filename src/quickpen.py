@@ -24,15 +24,15 @@ def per_pen_trajectory(h5f, traj_dset_name):
     per_pen=total_individuals//pen_cnt;
     traj_dset=h5f["/trajectory/{0}/trajectory".format(traj_dset_name)]
     # The dataset is an array of tuples, not a 2d array.
-    trajectory=np.zeros((pen_cnt, 4, 3*per_pen+1), np.int64)
+    trajectory=np.zeros((pen_cnt, 5, 4*per_pen+1), np.int64)
     trajectory[:,:,0]=initial
-    times=np.zeros((pen_cnt, 3*per_pen+1), np.float64)
+    times=np.zeros((pen_cnt, 4*per_pen+1), np.float64)
     last_obs=np.zeros(pen_cnt, np.int64)
     for idx, val in enumerate(traj_dset):
         who, pen, transition, t=val
         pen_step_idx=last_obs[pen]
-        s,e,i,r=trajectory[pen,:,pen_step_idx]
-        logger.debug((pen, pen_step_idx, transition, (s,e,i,r)))
+        s,e,i,r,c=trajectory[pen,:,pen_step_idx]
+        logger.debug((pen, pen_step_idx, transition, (s,e,i,r,c)))
         # transition 0 takes S to E
         # transition 1 takes E to I
         # transition 2 takes I to R
@@ -45,11 +45,14 @@ def per_pen_trajectory(h5f, traj_dset_name):
         elif transition==2:
             i-=1
             r+=1
+            c-=1
+        elif transition==3:
+            c+=1
         else:
             print("unknown transition")
         pen_step_idx+=1
         if (pen_step_idx<trajectory.shape[2]):
-            trajectory[pen,:,pen_step_idx]=np.array((s,e,i,r),np.int64)
+            trajectory[pen,:,pen_step_idx]=np.array((s,e,i,r,c),np.int64)
             times[pen,pen_step_idx]=t
             last_obs[pen]=pen_step_idx
         else:
@@ -62,7 +65,7 @@ def total_trajectory(h5f, traj_dset_name):
     initial=initial_values(h5f, traj_dset_name)
     traj_dset=h5f["/trajectory/{0}/trajectory".format(traj_dset_name)]
     seir_start=np.sum(initial, axis=0)
-    seir=np.zeros((len(traj_dset)+1,4), np.int)
+    seir=np.zeros((len(traj_dset)+1,5), np.int)
     times=np.zeros(len(traj_dset)+1, np.float64)
     seir[0,:]=seir_start
     times[0]=0.0
@@ -81,6 +84,9 @@ def total_trajectory(h5f, traj_dset_name):
         elif transition==2:
             seir_now[2]-=1
             seir_now[3]+=1
+            seir_now[4]-=1
+        elif transition==3:
+            seir_now[4]+=1
         else:
             print("unknown transition")
         times[idx+1]=t
@@ -172,8 +178,8 @@ def foreach_trajectory(f, func):
 
 def seir_initial(f):
     initial_values=f["/trajectory"].attrs["Initial Values"]
-    if len(initial_values)<4:
-        seir_values=np.zeros(4)
+    if len(initial_values)<5:
+        seir_values=np.zeros(5)
         for i in range(len(initial_values)):
             seir_values[i]=initial_values[i]
         initial_values=seir_values

@@ -20,12 +20,12 @@ def plot_total_infected(data):
 
 
 def single_trajectory(seir, times):
-    colors=["blue", "green", "brown", "black"]
-    for compartment_idx in range(4):
+    colors=["blue", "green", "brown", "black", "red"]
+    for compartment_idx in range(5):
         plt.plot(times, seir[:,compartment_idx],
                 color=colors[compartment_idx])
     plt.title("Prevalence for a Single Instance")
-    labels=("susceptible", "latent", "infectious", "removed")
+    labels=("susceptible", "latent", "infectious", "removed", "clinical")
     legend=plt.legend(labels)
     plt.xlabel("Time since initial [days]")
     plt.ylabel("Individual count")
@@ -133,8 +133,8 @@ def prevalence_by_day(binned):
     logger.debug("last nonzero day {0}".format(daycnt))
     xl=np.linspace(0, daycnt-1, daycnt)
     xr=np.linspace(1, daycnt, daycnt)
-    colors=["blue", "green", "black"]
-    for compartment_idx in range(1, 3):
+    colors=["blue", "green", "black", "red"]
+    for compartment_idx in [1,2,4]:
         plt.hlines(binned[:daycnt,compartment_idx], xl, xr,
             color=colors[compartment_idx-1])
     plt.xlabel("Time [days]")
