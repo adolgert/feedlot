@@ -26,3 +26,5 @@
 *.exe
 *.out
 *.app
+
+src/feedlot_version.hpp
