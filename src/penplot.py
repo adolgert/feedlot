@@ -88,6 +88,23 @@ def total_infected_plot(total_infected):
     plt.grid(True)
     plt.savefig("total_infected_hist.pdf", format="pdf")
 
+
+def total_infected_count_plot(total_infected):
+    plt.clf()
+    maxval=np.max(total_infected)
+    data=np.zeros(maxval+1, dtype=np.double)
+    x=np.arange(0, maxval+1)
+    for icnt in total_infected:
+        data[icnt]+=1
+    logger.debug("total_points data {0} sum {1}".format(np.sum(data),
+        np.sum(total_infected)))
+    data/=np.sum(total_infected)
+    plt.plot(x, data, 'go')
+    plt.title("Distribution of Total Infected")
+    plt.xlabel("Individuals [count]")
+    plt.ylabel("Probability")
+    plt.savefig("total_infected_points.pdf", format="pdf")
+
 def trajectory_density_plot(m1, m2, name):
     xmin=min(m1)
     xmax=max(m1)
@@ -103,7 +120,8 @@ def trajectory_density_plot(m1, m2, name):
     fig = plt.figure()
     ax = fig.add_subplot(111)
     ax.imshow(Z, cmap=plt.cm.YlGn, origin="lower",
-              extent=[xmin, xmax, ymin, ymax])
+              extent=[xmin, xmax, ymin, ymax],
+              aspect=0.6*(xmax-xmin)/(ymax-ymin))
     # ax.plot(m1, m2, 'k.', markersize=1)
     ax.set_xlim([xmin, xmax])
     ax.set_ylim([ymin, ymax])
@@ -115,7 +133,7 @@ def trajectory_density_plot(m1, m2, name):
 
 def plot_trajectory_lines(file_trajectories):
     plt.clf()
-    cnt=len(file_trajectories)
+    cnt=min(len(file_trajectories), 1000)
     for i in range(cnt):
         total, times=file_trajectories[i]
         infected=total[:,1]+total[:,2] # e + i

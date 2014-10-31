@@ -21,7 +21,7 @@ MCRAND=$(HOME)/Documents/mcrand
 FIGTREE=$(HOME)/Documents/figtree
 FIGTREE_LIBS=-L$(FIGTREE)/lib -lann_figtree_version -lfigtree
 
-CXX=g++
+CXX=clang++
 # -DSMVHIDELOG -pg
 OPT=-std=c++11 -DHAVE_CONFIG_H -fPIC -g -O2 -DSMVHIDELOG
 INCLUDES=-I$(SEMIMARKOV) -I. -I$(BOOST)/include -I$(HDF5)/include -I$(MCRAND)/include
@@ -31,7 +31,8 @@ LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
 	-lboost_chrono$(BOOSTVARIANT) -lboost_thread$(BOOSTVARIANT) \
 	-lboost_date_time$(BOOSTVARIANT) -lboost_filesystem$(BOOSTVARIANT) \
 	-lboost_program_options$(BOOSTVARIANT) -lboost_random$(BOOSTVARIANT) \
-	-lboost_system$(BOOSTVARIANT) -lhdf5 -lhdf5_hl -lgsl -lgslcblas \
+	-lboost_system$(BOOSTVARIANT) -lboost_timer$(BOOSTVARIANT) \
+	-lhdf5 -lhdf5_hl -lgsl -lgslcblas \
 	-lmcrand -lpthread
 
 all: seir rider individual ensemble_sum
@@ -45,7 +46,7 @@ seir: seir_exp.o main.o hdf_file.o trajectory.o pen.o rider_enums.o \
 seir_exp.o: seir_exp.cpp seir_exp.hpp
 	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
 
-main.o: main.cpp feedlot_version.hpp seir_exp.hpp
+main.o: main.cpp feedlot_version.hpp seir_exp.hpp hdf_file.hpp
 	$(CXX) main.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-c -o main.o
 
@@ -58,7 +59,7 @@ rider.o: rider.cpp rider.hpp
 	$(CXX) rider.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-c -o rider.o
 
-ridermain.o: ridermain.cpp feedlot_version.hpp rider.hpp
+ridermain.o: ridermain.cpp feedlot_version.hpp rider.hpp hdf_file.hpp
 	$(CXX) ridermain.cpp -DHAVE_CONFIG_H -std=c++11 -fPIC $(INCLUDES) $(OPT) \
 	-c -o ridermain.o
 

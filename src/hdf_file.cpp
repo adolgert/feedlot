@@ -447,6 +447,7 @@ bool HDFFile::Save2DPDF(const std::vector<double>& interpolant,
       H5P_DEFAULT, &interpolant[0]);
   H5Dclose(ds_id);
   H5Sclose(dspace);
+  return true;
 }
 
 
@@ -493,4 +494,5 @@ bool HDFFile::Write1DFloat(hid_t group, const std::vector<double>& x,
       H5P_DEFAULT, &x[0]);
   H5Dclose(x_id);
   H5Sclose(x_dspace);
+  return true;
 }

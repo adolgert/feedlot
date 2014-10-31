@@ -1,6 +1,7 @@
 #include <string>
 #include <sstream>
 #include "boost/program_options.hpp"
+#include "boost/timer/timer.hpp"
 #include "smv.hpp"
 #include "parameter.hpp"
 #include "trajectory.hpp"
@@ -183,10 +184,13 @@ int main(int argc, char *argv[]) {
       static_cast<size_t>(individual_cnt));
     auto trajectory_save=std::make_shared<TrajectorySave>(4*individual_cnt);
 
+    using boost::timer::cpu_timer;
+    using boost::timer::nanosecond_type;
+    cpu_timer timer;
     SEIR_run(end_time, seir_init, parameters, model_opts, pen_graph,
         observer, trajectory_save, rng);
     file.SavePenTrajectory(parameters, single_seed, idx, observer->Trajectory(),
-      observer->PenInitial());
+      observer->PenInitial(), timer.elapsed().wall);
     file.SaveTrajectory(parameters, single_seed, idx,
         trajectory_save->Trajectory());
   };

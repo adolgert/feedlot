@@ -85,6 +85,7 @@ def write_report(info, outfile):
     info["TrajectoryLines"]=include_trajectory_lines()
     info["EndTime"]=include_end_time()
     info["TotalInfected"]=include_total_infected()
+    info["TotalInfectedPoints"]=include_total_infected_points()
     info["BinnedPrevalence"]=include_binned()
     info["SmallMultiples"]=include_multiples()
     info["TrajectoryDensityInfected"]=include_trajectory_density()
@@ -114,6 +115,8 @@ def write_report(info, outfile):
 
 {EndTime}
 
+{TotalInfectedPoints}
+
 {TotalInfected}
 
 {SmallMultiples}
@@ -132,8 +135,9 @@ def single_trajectory_small_multiples(h5f):
 
 
 def summaries(h5f):
-    aggregate=quickpen.summary_of_ensemble(h5f, 50)
+    aggregate=quickpen.summary_of_ensemble(h5f, -1)
     penplot.total_infected_plot(aggregate[0].data)
+    penplot.total_infected_count_plot(aggregate[0].data)
     penplot.end_time_plot(aggregate[1].data)
     all_states_obj=aggregate[2]
     print(type(all_states_obj))
@@ -167,6 +171,10 @@ def include_total_infected():
     return include_figure("total_infected_hist.pdf", "0.7",
         "Each bar shows the total number of realizations whose "
         "infections fell in the given range", "fig:totalinfected")
+
+def include_total_infected_points():
+    return include_figure("total_infected_points.pdf", "0.7",
+        "Simple point plot of total infected.", "fig:totalinfectedpoint")
 
 def trajectory_lines(h5f):
     penplot.plot_trajectory_lines(quickpen.FileTrajectories(h5f))

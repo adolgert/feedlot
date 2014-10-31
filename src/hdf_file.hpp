@@ -39,7 +39,7 @@ class HDFFile {
   template<typename Params>
   bool SavePenTrajectory(const Params& params,
     int seed, int idx, const std::vector<PenTrajectory>& trajectory,
-    const std::vector<TrajectoryEntry>& initial) const;
+    const std::vector<TrajectoryEntry>& initial, int64_t nanosecs) const;
 
   bool WriteExecutableData(const std::map<std::string,std::string>& compile,
     const boost::program_options::basic_parsed_options<char>& cmdline,
@@ -176,7 +176,7 @@ bool HDFFile::SaveTrajectory(const Params& params,
 template<typename Params>
 bool HDFFile::SavePenTrajectory(const Params& params,
     int seed, int idx, const std::vector<PenTrajectory>& trajectory,
-    const std::vector<TrajectoryEntry>& initial) const {
+    const std::vector<TrajectoryEntry>& initial, int64_t nanosecs) const {
   std::unique_lock<std::mutex> only_me(single_writer_);
   BOOST_LOG_TRIVIAL(debug)<<"Writing pen trajectory "<<open_;
   assert(open_);
@@ -284,6 +284,19 @@ bool HDFFile::SavePenTrajectory(const Params& params,
     herr_t atstatus=H5Awrite(attr0_id, H5T_NATIVE_DOUBLE, &p.value);
     if (atstatus<0) {
       BOOST_LOG_TRIVIAL(error)<<"Could not write attribute "<<p.name;
+    }
+    H5Aclose(attr0_id);
+  }
+
+  {
+    hid_t attr0_id=H5Acreate2(dataset_group_id, "elapsed_time", H5T_STD_I64LE,
+      dspace_id, H5P_DEFAULT, H5P_DEFAULT);
+    if (attr0_id<0) {
+      BOOST_LOG_TRIVIAL(error)<<"Could not create attribute for elapsed time";
+    }
+    herr_t atstatus=H5Awrite(attr0_id, H5T_NATIVE_DOUBLE, &nanosecs);
+    if (atstatus<0) {
+      BOOST_LOG_TRIVIAL(error)<<"Could not write attribute elapsed time";
     }
     H5Aclose(attr0_id);
   }
