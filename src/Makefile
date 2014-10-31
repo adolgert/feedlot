@@ -14,14 +14,14 @@
 BOOST=/usr/local/boost_1_54_0mt
 # Different Boost installations have different suffixes.
 # If there is no suffix, use "BOOSTVARIANT=".
-BOOSTVARIANT=-mt
+BOOSTVARIANT=
 SEMIMARKOV=/usr/local/include/semimarkov-0.1
 HDF5=/usr/local/hdf5-1.8.11
 MCRAND=$(HOME)/Documents/mcrand
 FIGTREE=$(HOME)/Documents/figtree
 FIGTREE_LIBS=-L$(FIGTREE)/lib -lann_figtree_version -lfigtree
 
-CXX=clang++
+-include local.mk
 # -DSMVHIDELOG -pg
 OPT=-std=c++11 -DHAVE_CONFIG_H -fPIC -g -O2 -DSMVHIDELOG
 INCLUDES=-I$(SEMIMARKOV) -I. -I$(BOOST)/include -I$(HDF5)/include -I$(MCRAND)/include

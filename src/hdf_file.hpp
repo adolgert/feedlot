@@ -45,6 +45,8 @@ class HDFFile {
     const boost::program_options::basic_parsed_options<char>& cmdline,
     const std::vector<int64_t>& initial_values) const;
 
+  bool WriteEnsembleVariables(int64_t elapsed_ns) const;
+
   bool Save2DPDF(const std::vector<double>& interpolant,
     const std::vector<double>& x, const std::vector<double>& y,
     std::string name) const;

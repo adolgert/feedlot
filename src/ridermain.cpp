@@ -57,6 +57,7 @@ int main(int argc, char *argv[]) {
   std::string data_file("rider.h5");
   bool save_file=false;
   std::string translation_file;
+  std::string message("");
   bool test=false;
 
   desc.add_options()
@@ -122,6 +123,8 @@ int main(int argc, char *argv[]) {
       po::value<std::string>(&translation_file)->default_value(""),
       "write file relating place ids to internal ids")
     ("info", "show provenance of program")
+    ("message,m", po::value<std::string>(&message)->default_value(message),
+      "Add a reason WHY you are running this ensemble.")
     ;
 
   for (auto& p : parameters) {
@@ -185,15 +188,17 @@ int main(int argc, char *argv[]) {
     BOOST_LOG_TRIVIAL(error)<<"could not open output file: "<<data_file;
     return -1;
   }
+  using boost::timer::cpu_timer;
+  using boost::timer::nanosecond_type;
   file.WriteExecutableData(compile_info, parsed_options, seir_init);
+
+  cpu_timer whole_run;
 
   auto runnable=[=, &file](RandGen& rng, size_t single_seed, size_t idx)->void {
     std::shared_ptr<PenTrajectorySave> observer=
       std::make_shared<PenTrajectorySave>(static_cast<size_t>(individual_cnt));
     auto trajectory_save=std::make_shared<TrajectorySave>(4*individual_cnt);
 
-    using boost::timer::cpu_timer;
-    using boost::timer::nanosecond_type;
     cpu_timer timer;
     SEIR_run(end_time, seir_init, parameters, model_opts, pen_graph,
         observer, trajectory_save, rng);
@@ -208,6 +213,7 @@ int main(int argc, char *argv[]) {
   ensemble.Run();
   BOOST_LOG_TRIVIAL(debug)<<"Finished running ensemble.";
 
+  file.WriteEnsembleVariables(whole_run.elapsed().wall);
   file.Close();
 
   return 0;

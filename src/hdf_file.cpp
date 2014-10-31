@@ -210,6 +210,28 @@ bool HDFFile::WriteExecutableData(const std::map<std::string,std::string>& compi
 }
 
 
+bool HDFFile::WriteEnsembleVariables(int64_t elapsed_ns) const {
+  hsize_t odims=1;
+  hid_t ospace_id=H5Screate_simple(1, &odims, NULL);
+  hid_t attr0_id=H5Acreate2(trajectory_group_, "totalelapsedwall",
+    H5T_STD_I64LE, ospace_id, H5P_DEFAULT, H5P_DEFAULT);
+  if (attr0_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not write walltime";
+    H5Sclose(ospace_id);    
+    return false;
+  }
+  herr_t wstatus=H5Awrite(attr0_id, H5T_STD_I64LE, &elapsed_ns);
+  if (wstatus<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not write walltime";
+    return false;
+  }
+
+  H5Aclose(attr0_id);
+  H5Sclose(ospace_id);
+  return wstatus>=0;
+}
+
+
 bool HDFFile::Close() {
   if (open_) {
     if (trajectory_group_>0) {

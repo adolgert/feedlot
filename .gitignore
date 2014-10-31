@@ -28,3 +28,5 @@
 *.app
 
 src/feedlot_version.hpp
+src/local.mk
+local.mk
