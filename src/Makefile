@@ -23,7 +23,7 @@ FIGTREE_LIBS=-L$(FIGTREE)/lib -lann_figtree_version -lfigtree
 
 -include local.mk
 # -DSMVHIDELOG -pg
-OPT=-std=c++11 -DHAVE_CONFIG_H -fPIC -g -O2 -DSMVHIDELOG
+OPT=-std=c++11 -DHAVE_CONFIG_H -fPIC -g -O2 
 INCLUDES=-I$(SEMIMARKOV) -I. -I$(BOOST)/include -I$(HDF5)/include -I$(MCRAND)/include
 LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
     -lboost_unit_test_framework$(BOOSTVARIANT) \

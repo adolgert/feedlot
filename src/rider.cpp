@@ -307,8 +307,8 @@ class RecoverExponential : public SIRTransition
   virtual void Fire(UserState& s, Local& lm, double t0,
       RandGen& rng) override {
     SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire recover " << lm);
-    lm.template Remove<0>(0, 1, rng);
-    lm.template Move<0, 0>(1, 2, 1);
+    lm.template Remove<0>(1, 1, rng);
+    lm.template Move<0, 0>(0, 2, 1);
   }
 };
 
@@ -342,8 +342,8 @@ class Recover : public BaseTransition
     typename BaseTransition::LocalMarking& lm, double t0,
       typename BaseTransition::RandGen& rng) override {
     SMVLOG(BOOST_LOG_TRIVIAL(debug) << "Fire recover " << lm);
-    lm.template Remove<0>(0, 1, rng);
-    lm.template Move<0, 0>(1, 2, 1);
+    lm.template Remove<0>(1, 1, rng);
+    lm.template Move<0, 0>(0, 2, 1);
   }
 };
 
@@ -380,6 +380,101 @@ class SubClinical : public BaseTransition
     lm.template Move<0, 0>(0, 2, 1); // Move individual to summary count.
   }
 };
+
+
+
+// When a pen empties, this moves recovered to susceptible.
+template<typename BaseTransition>
+class ReplaceRecovered : public BaseTransition
+{
+  virtual std::pair<bool, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>>
+  Enabled(const typename BaseTransition::UserState& s,
+    const typename BaseTransition::LocalMarking& lm,
+    double te, double t0, typename BaseTransition::RandGen& rng) override {
+    int64_t pen_emptying=lm.template Length<0>(0);
+    int64_t R=lm.template Length<0>(1);
+    if (pen_emptying>0 && R>0) {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
+      return {true, std::unique_ptr<ExpDist>(
+        new ExpDist(12.0, te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
+      return {false, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>(nullptr)};
+    }
+  }
+
+  virtual void Fire(typename BaseTransition::UserState& s,
+    typename BaseTransition::LocalMarking& lm, double t0,
+      typename BaseTransition::RandGen& rng) override {
+    int64_t cnt=lm.template Length<0>(1);
+    lm.template Move<0, 0>(1, 2, cnt); // Move individual to summary count.
+  }
+};
+
+// When a pen empties, this moves a token to susceptible.
+template<typename BaseTransition>
+class Replace : public BaseTransition
+{
+  virtual std::pair<bool, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>>
+  Enabled(const typename BaseTransition::UserState& s,
+    const typename BaseTransition::LocalMarking& lm,
+    double te, double t0, typename BaseTransition::RandGen& rng) override {
+    int64_t pen_emptying=lm.template Length<0>(0);
+    int64_t R=lm.template Length<0>(1);
+    if (pen_emptying>0 && R>0) {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
+      return {true, std::unique_ptr<ExpDist>(
+        new ExpDist(12.0, te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
+      return {false, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>(nullptr)};
+    }
+  }
+
+  virtual void Fire(typename BaseTransition::UserState& s,
+    typename BaseTransition::LocalMarking& lm, double t0,
+      typename BaseTransition::RandGen& rng) override {
+    lm.template Move<0, 0>(1, 2, 1); // Move individual to summary count.
+  }
+};
+
+
+// When a pen empties, this moves a token to susceptible.
+template<typename BaseTransition>
+class ReplaceSummary : public BaseTransition
+{
+  virtual std::pair<bool, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>>
+  Enabled(const typename BaseTransition::UserState& s,
+    const typename BaseTransition::LocalMarking& lm,
+    double te, double t0, typename BaseTransition::RandGen& rng) override {
+    int64_t pen_emptying=lm.template Length<0>(0);
+    int64_t E=lm.template Length<0>(1);
+    if (pen_emptying>0 && E>0) {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover rate "<< rate);
+      return {true, std::unique_ptr<ExpDist>(
+        new ExpDist(12.0, te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"recover disable");
+      return {false, std::unique_ptr<afidd::smv::TransitionDistribution< 
+        typename BaseTransition::RandGen>>(nullptr)};
+    }
+  }
+
+  virtual void Fire(typename BaseTransition::UserState& s,
+    typename BaseTransition::LocalMarking& lm, double t0,
+      typename BaseTransition::RandGen& rng) override {
+    lm.template Move<0, 0>(1, 2, 1); // Move individual to summary count.
+    lm.template Remove<0>(3, 1, rng);
+  }
+};
+
+
+
 
 // Now make specific transitions.
 class StartRider : public SIRTransition
@@ -531,6 +626,79 @@ public:
   }
 };
 
+
+// Now make specific transitions.
+class PenEmpty : public SIRTransition
+{
+  double initial_time_;
+public:
+  PenEmpty(double initial_time) : initial_time_(initial_time) {}
+
+  virtual std::pair<bool, std::unique_ptr<Dist>>
+  Enabled(const UserState& s, const Local& lm,
+    double te, double t0, RandGen& rng) override {
+    // If these are just size_t, then the rate calculation overflows.
+    int64_t PF=lm.template Length<0>(0);
+    if (PF>0) {
+      // ta is the next occurrence of 6am.
+      double turnover=s.params.at(SIRParam::PenTurnoverDays);
+      double next_time=
+          std::ceil((te-initial_time_)/turnover)*turnover+initial_time_;
+      double ta=next_time-te;
+      double tb=ta + 15.0/(60.0*24.0);
+      return {true, std::unique_ptr<Dist>(
+        new afidd::smv::UniformDistribution<RandGen>(ta, tb, te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"infection disable");
+      return {false, std::unique_ptr<Dist>(nullptr)};
+    }
+  }
+
+  virtual void Fire(UserState& s, Local& lm, double t0,
+      RandGen& rng) override {
+    lm.template Move<0,0>(0, 1, 1);
+    SMVLOG(BOOST_LOG_TRIVIAL(debug)<<"Pen empties");
+  }
+};
+
+
+// Now make specific transitions.
+class PenFill : public SIRTransition
+{
+  double initial_time_;
+public:
+  PenFill(double initial_time) : initial_time_(initial_time) {}
+
+  virtual std::pair<bool, std::unique_ptr<Dist>>
+  Enabled(const UserState& s, const Local& lm,
+    double te, double t0, RandGen& rng) override {
+    // If these are just size_t, then the rate calculation overflows.
+    int64_t PF=lm.template Length<0>(0);
+    if (PF>0) {
+      // ta is the next occurrence of 6am.
+      double turnover=s.params.at(SIRParam::PenTurnoverDays);
+      // Because we are switching back to the full state.
+      double shift_time=initial_time_+turnover/2.0;
+      double next_time=
+          std::ceil((te-shift_time)/turnover)*turnover+shift_time;
+      double ta=next_time-te;
+      double tb=ta + 15.0/(60.0*24.0);
+      return {true, std::unique_ptr<Dist>(
+        new afidd::smv::UniformDistribution<RandGen>(ta, tb, te))};
+    } else {
+      //SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"infection disable");
+      return {false, std::unique_ptr<Dist>(nullptr)};
+    }
+  }
+
+  virtual void Fire(UserState& s, Local& lm, double t0,
+      RandGen& rng) override {
+    lm.template Move<0,0>(0, 1, 1);
+    SMVLOG(BOOST_LOG_TRIVIAL(debug)<<"Pen empties");
+  }
+};
+
+
 // The GSPN itself.
 using SIRGSPN=
     ExplicitTransitions<SIRPlace, SIRTKey, Local, RandGen, WithParams>;
@@ -538,7 +706,8 @@ using SIRGSPN=
 /*! SIR infection on an all-to-all graph of uncolored tokens.
  */
 void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
-    const PenContactGraph& g, const std::map<ModelOptions,bool>& opts)
+    const PenContactGraph& g, const std::map<ModelOptions,bool>& opts,
+    const std::map<SIRParam,TypedParameter<SIRParam>>& parameters, RandGen& rng)
 {
   using Edge=BuildGraph<SIRGSPN>::PlaceEdge;
 
@@ -547,7 +716,7 @@ void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
   assert((individual_cnt % per_pen)==0);
   BOOST_LOG_TRIVIAL(info) << "individuals "<<individual_cnt<<" pens "<<pen_cnt
       <<" per pen "<<per_pen;
-  enum : int64_t { s, e, i, r, n, c };
+  enum : int64_t { s, e, i, r, n, c, penempty, penfull };
 
   // 2N
   const int64_t location=0;
@@ -562,6 +731,13 @@ void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
   for (int64_t sp_idx=0; sp_idx<pen_cnt; ++sp_idx) {
     for (int64_t place : std::vector<int64_t>{s, e, i, r}) {
       bg.AddPlace({sp_idx, pen_summary, place}, 0);
+    }
+  }
+  // 2P
+  if (opts.at(ModelOptions::PenReplace)) {
+    for (int64_t pr_idx=0; pr_idx<pen_cnt; ++pr_idx) {
+      bg.AddPlace({pr_idx, pen_summary, penempty});
+      bg.AddPlace({pr_idx, pen_summary, penfull});
     }
   }
 
@@ -695,6 +871,51 @@ void BuildSystem(SIRGSPN& bg, int64_t individual_cnt,
         {Edge{pen_s, -1}, Edge{{c_idx, location, i},-1},
          Edge{pen_i, 1}},
          std::unique_ptr<SIRTransition>(new InfectRider()));
+    }
+  }
+
+
+  if (opts.at(ModelOptions::PenReplace)) {
+    double pen_interval_days=parameters.at(SIRParam::PenTurnoverDays).value;
+    std::uniform_real_distribution<double> turnoverdist(0.0, pen_interval_days);
+    for (int64_t fill_idx=0; fill_idx<pen_cnt; ++fill_idx) {
+      double offset=turnoverdist(rng);
+      auto pen_full=SIRPlace{fill_idx, pen_summary, penfull};
+      auto pen_empty=SIRPlace{fill_idx, pen_summary, penempty};
+      SMVLOG(BOOST_LOG_TRIVIAL(debug)<<"PenReplace penfull "<<penfull<<
+        " penempty "<<penempty);
+
+      bg.AddTransition({fill_idx, fill_idx, TransitionType::emptypen},
+        {Edge{pen_full, -1}, Edge{pen_empty, 1}},
+        std::unique_ptr<SIRTransition>(new PenEmpty(offset)));
+      bg.AddTransition({fill_idx, fill_idx, TransitionType::fillpen},
+        {Edge{pen_full, -1}, Edge{pen_empty, 1}},
+        std::unique_ptr<SIRTransition>(new PenFill(offset)));
+
+      auto pen_s=SIRPlace{fill_idx, pen_summary, s};
+      auto pen_e=SIRPlace{fill_idx, pen_summary, e};
+      auto pen_i=SIRPlace{fill_idx, pen_summary, i};
+      auto pen_r=SIRPlace{fill_idx, pen_summary, r};
+      bg.AddTransition({fill_idx, fill_idx, TransitionType::replacerecovered},
+        {Edge{pen_empty, -1}, Edge{pen_r, -1}, Edge{pen_s, 1}},
+        std::unique_ptr<SIRTransition>(new ReplaceRecovered<SIRTransition>()));
+
+      for (int64_t ind_idx=fill_idx*per_pen; ind_idx<(fill_idx+1)*per_pen;
+            ++ind_idx) {
+        auto ind_e=SIRPlace{ind_idx, 0, e};
+        auto ind_i=SIRPlace{ind_idx, 0, i};
+        auto ind_n=SIRPlace{ind_idx, 0, n};
+        auto ind_c=SIRPlace{ind_idx, 0, c};
+        bg.AddTransition({ind_idx, ind_idx, TransitionType::replaceexposed},
+          {Edge{pen_empty, -1}, Edge{ind_e, -1}, Edge{pen_s, 1}, Edge{pen_e, 1}},
+          std::unique_ptr<SIRTransition>(new ReplaceSummary<SIRTransition>()));
+        bg.AddTransition({ind_idx, ind_idx, TransitionType::replaceinfectious},
+          {Edge{pen_empty, -1}, Edge{ind_i, -1}, Edge{pen_s, 1}, Edge{pen_i, 1}},
+          std::unique_ptr<SIRTransition>(new ReplaceSummary<SIRTransition>()));
+        bg.AddTransition({ind_idx, ind_idx, TransitionType::replaceclinical},
+          {Edge{pen_empty, -1}, Edge{ind_c, -1}, Edge{ind_n, 1}},
+          std::unique_ptr<SIRTransition>(new Replace<SIRTransition>()));
+      }
     }
   }
 }
@@ -906,7 +1127,10 @@ struct SEIROutput
     // }
 
     ++step_cnt;
-    return (std::get<1>(seir_)+std::get<2>(seir_)>0);
+    bool running=(std::get<1>(seir_)+std::get<2>(seir_)>0);
+    SMVLOG(BOOST_LOG_TRIVIAL(trace)<<"SEIROutput returns "<<running<<" "
+        <<std::get<1>(seir_) <<" "<<std::get<2>(seir_));
+    return running;
   }
 
   void initial(const SIRState& state) {
@@ -921,8 +1145,11 @@ struct SEIROutput
       seir_init_[pen_idx].i=Length<0>(state.marking, splace);
       splace=gspn_.PlaceVertex({pen_idx, pen_summary, 3});
       seir_init_[pen_idx].r=Length<0>(state.marking, splace);
-      splace=gspn_.PlaceVertex({pen_idx, pen_summary, 4});
-      seir_init_[pen_idx].c=Length<0>(state.marking, splace);
+      for (int64_t ind_idx=pen_idx*per_pen_; ind_idx<(pen_idx+1)*per_pen_;
+          ++ind_idx) {
+        splace=gspn_.PlaceVertex({ind_idx, 0, 4});
+        seir_init_[pen_idx].c+=Length<0>(state.marking, splace);
+      }
       seir_init_[pen_idx].t=0;
     }
     pen_observer_->SetInitial(seir_init_);
@@ -936,7 +1163,7 @@ struct SEIROutput
 
 
 int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
-    const std::vector<TypedParameter<SIRParam>>& parameters,
+    const std::map<SIRParam,TypedParameter<SIRParam>>& parameters,
     std::map<ModelOptions,bool> opts,
     const PenContactGraph& pen_contact,
     std::shared_ptr<PenTrajectoryObserver> observer,
@@ -960,13 +1187,17 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   if (opts[ModelOptions::AllToAllInfection]) {
     animal_infect=P*P*animals_per_pen;
   }
+  int64_t replace=0;
+  if (opts[ModelOptions::PenReplace]) {
+    replace=2*P+3*P+3*N;
+  }
   int64_t rider_infect=P+N; // infect and infected by.
   int64_t rider_move=(P+1)*2;
   int64_t rider_recover=P;
   int64_t guess_cnt=animal_places+rider_places+individual_transitions
-      +animal_infect+rider_infect+rider_move+rider_recover;
+      +animal_infect+rider_infect+rider_move+rider_recover+replace;
   SIRGSPN gspn(guess_cnt);
-  BuildSystem(gspn, individual_cnt, pen_contact, opts);
+  BuildSystem(gspn, individual_cnt, pen_contact, opts, parameters, rng);
   BOOST_LOG_TRIVIAL(debug)<<"GSPN vertex count "<<gspn.VerticesUsed()
       << " guess " << guess_cnt;
 
@@ -980,17 +1211,17 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   std::set<SIRParam> scale_param{ SIRParam::Beta0, SIRParam::Beta1,
       SIRParam::Beta2, SIRParam::RiderInfect };
   for (auto& cp : parameters) {
-    double value=cp.value;
-    if (scale_param.find(cp.kind)!=scale_param.end()) {
-      value=cp.value/animals_per_pen;
+    double value=cp.second.value;
+    if (scale_param.find(cp.second.kind)!=scale_param.end()) {
+      value=cp.second.value/animals_per_pen;
     }
-    state.user.params[cp.kind]=value;
+    state.user.params[cp.second.kind]=value;
   }
 
   BOOST_LOG_TRIVIAL(debug)<<"Creating susceptibles. "<<individual_cnt;
   const int64_t location=0;
   const int64_t sumloc=1;
-  enum : int64_t { s, e, i, r, n, c };
+  enum : int64_t { s, e, i, r, n, c, penempty, penfull };
   for (int64_t sus_idx=0; sus_idx<individual_cnt; ++sus_idx) {
     auto pen_idx=pen_of(sus_idx, animals_per_pen);
     auto summary_id=gspn.PlaceVertex({pen_idx, sumloc, s});
@@ -1023,6 +1254,12 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
     // The rider starts outside the pens.
     auto rider_id=gspn.PlaceVertex({0, 2, 0});
     Add<0>(state.marking, rider_id, IndividualToken{});
+  }
+  if (opts[ModelOptions::PenReplace]) {
+    for (int rp_idx=0; rp_idx<pen_cnt; ++rp_idx) {
+      auto filled=gspn.PlaceVertex({rp_idx, sumloc, penfull});
+      Add<0>(state.marking, filled, IndividualToken{});
+    }
   }
   // BOOST_LOG_TRIVIAL(debug)<<"Checking marking just after building.";
   // CheckMarking(gspn, state.marking, individual_cnt, pen_cnt, animals_per_pen);

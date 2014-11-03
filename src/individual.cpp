@@ -208,7 +208,7 @@ int main(int argc, char *argv[]) {
   RandGen rng{7432};
 
   SIRGSPN gspn{5};
-  std::vector<TypedParameter<SIRParam>> parameters;
+  std::map<SIRParam,TypedParameter<SIRParam>> parameters;
   if (is_exponential) {
     BuildExponentialGSPN(gspn);
     FMDV_Mardones_Exponential(parameters);
@@ -219,7 +219,7 @@ int main(int argc, char *argv[]) {
 
   SIRState state;
   for (auto& cp : parameters) {
-    state.user.params[cp.kind]=cp.value;
+    state.user.params[cp.second.kind]=cp.second.value;
   }
   auto e_cattlebeast=gspn.PlaceVertex({0, 0, 1});
   Add<0>(state.marking, e_cattlebeast, IndividualToken{});

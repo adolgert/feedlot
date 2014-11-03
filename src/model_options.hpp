@@ -8,7 +8,8 @@ enum class ModelOptions {
   ExponentialTransitions,
   DoubleGamma,
   Rider,
-  AllToAllInfection
+  AllToAllInfection,
+  PenReplace
 };
 
 std::map<ModelOptions,bool> model_options();

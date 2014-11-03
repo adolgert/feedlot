@@ -513,7 +513,7 @@ struct SEIROutput
 
 
 int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
-    const std::vector<TypedParameter<SIRParam>>& parameters,
+    const std::map<SIRParam,TypedParameter<SIRParam>>& parameters,
     std::map<ModelOptions,bool> opts,
     const PenContactGraph& pen_graph,
     std::shared_ptr<PenTrajectoryObserver> observer,
@@ -537,13 +537,13 @@ int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
   std::set<SIRParam> scale_param{ SIRParam::Beta0, SIRParam::Beta1,
       SIRParam::Beta2, SIRParam::RiderInfect };
   for (auto& cp : parameters) {
-    double value=cp.value;
-    if (scale_param.find(cp.kind)!=scale_param.end()) {
-      value=cp.value/animals_per_pen;
+    double value=cp.second.value;
+    if (scale_param.find(cp.second.kind)!=scale_param.end()) {
+      value=cp.second.value/animals_per_pen;
     }
-    state.user.params[cp.kind]=value;
+    state.user.params[cp.second.kind]=value;
   }
-
+  
   enum : int64_t { s, e, i, r, n, c };
   const int64_t location=0;
   for (int64_t sus_idx=0; sus_idx<individual_cnt; ++sus_idx) {

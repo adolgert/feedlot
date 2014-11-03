@@ -7,5 +7,6 @@ std::map<ModelOptions,bool> model_options() {
 	opts[ModelOptions::DoubleGamma]=false;
 	opts[ModelOptions::Rider]=false;
 	opts[ModelOptions::AllToAllInfection]=false;
+  opts[ModelOptions::PenReplace]=false;
   return opts;
 }

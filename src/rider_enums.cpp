@@ -36,6 +36,24 @@ std::ostream& operator<<(std::ostream& os, TransitionType t) {
     case TransitionType::subclinical :
       os << "sc";
       break;
+    case TransitionType::fillpen :
+      os << "fp";
+      break;
+    case TransitionType::emptypen :
+      os << "ep";
+      break;
+    case TransitionType::replaceexposed :
+      os << "re";
+      break;
+    case TransitionType::replaceinfectious :
+      os << "ri";
+      break;
+    case TransitionType::replaceclinical :
+      os << "rc";
+      break;
+    case TransitionType::replacerecovered :
+      os << "rer";
+      break;
     default:
       os << "unknown transition";
       break;

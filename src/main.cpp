@@ -29,14 +29,17 @@ int main(int argc, char *argv[]) {
   int run_cnt=1;
   size_t rand_seed=1;
   // Time is in years.
-  using Param=TypedParameter<SIRParam>;
-  std::vector<Param> parameters;
+  using MyParm=TypedParameter<SIRParam>;
+  std::map<SIRParam,MyParm> parameters;
   double beta=0.2485;
-  parameters.emplace_back(Param{SIRParam::Beta0, "beta0", beta,
+  auto add_param=[&parameters](MyParm p) {
+    parameters[p.kind]=p;
+  };
+  add_param(MyParm{SIRParam::Beta0, "beta0", beta,
     "density-dependent infection rate within a pen"});
-  parameters.emplace_back(Param{SIRParam::Beta1, "beta1", beta/10,
+  add_param(MyParm{SIRParam::Beta1, "beta1", beta/10,
     "density-dependent infection rate across a fence"});
-  parameters.emplace_back(Param{SIRParam::Beta2, "beta2", beta/1000,
+  add_param(MyParm{SIRParam::Beta2, "beta2", beta/1000,
     "density-dependent infection rate to any other animal"});
   FMDV_Mardones_Nonexponential(parameters);
   FMDV_Mardones_Exponential(parameters);
@@ -110,9 +113,9 @@ int main(int argc, char *argv[]) {
     ;
 
   for (auto& p : parameters) {
-    desc.add_options()(p.name.c_str(),
-      po::value<double>(&p.value)->default_value(p.value),
-      p.description.c_str());
+    desc.add_options()(p.second.name.c_str(),
+      po::value<double>(&p.second.value)->default_value(p.second.value),
+      p.second.description.c_str());
   }
 
   po::variables_map vm;
@@ -142,12 +145,6 @@ int main(int argc, char *argv[]) {
     ;
   }
 
-  std::map<SIRParam,double*> params;
-  for (auto& pm : parameters) {
-    assert(params.find(pm.kind)==params.end());
-    params[pm.kind]=&pm.value;
-  }
-
   int64_t susceptible_cnt=individual_cnt-(exposed_cnt+infected_cnt+recovered_cnt);
 
   assert(susceptible_cnt>0);
@@ -161,7 +158,7 @@ int main(int argc, char *argv[]) {
     <<" "<<seir_init[2] << " "<<seir_init[3];
 
   for (auto& showp : parameters) {
-    BOOST_LOG_TRIVIAL(info)<<showp.name<<" "<<showp.value;
+    BOOST_LOG_TRIVIAL(info)<<showp.second.name<<" "<<showp.second.value;
   }
 
   PenContactGraph pen_graph;

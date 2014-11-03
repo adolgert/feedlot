@@ -156,11 +156,11 @@ bool HDFFile::SaveTrajectory(const Params& params,
   hsize_t adims=1;
   hid_t dspace_id=H5Screate_simple(1, &adims, NULL);
   for (auto& p : params) {
-    hid_t attr0_id=H5Acreate2(dataset_id, p.name.c_str(), H5T_IEEE_F64LE,
+    hid_t attr0_id=H5Acreate2(dataset_id, p.second.name.c_str(), H5T_IEEE_F64LE,
       dspace_id, H5P_DEFAULT, H5P_DEFAULT);
-    herr_t atstatus=H5Awrite(attr0_id, H5T_NATIVE_DOUBLE, &p.value);
+    herr_t atstatus=H5Awrite(attr0_id, H5T_NATIVE_DOUBLE, &p.second.value);
     if (atstatus<0) {
-      BOOST_LOG_TRIVIAL(error)<<"Could not write attribute "<<p.name;
+      BOOST_LOG_TRIVIAL(error)<<"Could not write attribute "<<p.second.name;
     }
     H5Aclose(attr0_id);
   }
@@ -278,14 +278,14 @@ bool HDFFile::SavePenTrajectory(const Params& params,
   hsize_t adims=1;
   hid_t dspace_id=H5Screate_simple(1, &adims, NULL);
   for (auto& p : params) {
-    hid_t attr0_id=H5Acreate2(dataset_group_id, p.name.c_str(), H5T_IEEE_F64LE,
-      dspace_id, H5P_DEFAULT, H5P_DEFAULT);
+    hid_t attr0_id=H5Acreate2(dataset_group_id, p.second.name.c_str(),
+      H5T_IEEE_F64LE, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
     if (attr0_id<0) {
-      BOOST_LOG_TRIVIAL(error)<<"Could not create attribute for "<<p.name;
+      BOOST_LOG_TRIVIAL(error)<<"Could not create attribute for "<<p.second.name;
     }
-    herr_t atstatus=H5Awrite(attr0_id, H5T_NATIVE_DOUBLE, &p.value);
+    herr_t atstatus=H5Awrite(attr0_id, H5T_NATIVE_DOUBLE, &p.second.value);
     if (atstatus<0) {
-      BOOST_LOG_TRIVIAL(error)<<"Could not write attribute "<<p.name;
+      BOOST_LOG_TRIVIAL(error)<<"Could not write attribute "<<p.second.name;
     }
     H5Aclose(attr0_id);
   }

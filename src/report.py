@@ -225,7 +225,8 @@ def make_report(filename):
     f=h5py.File(filename, "r")
     info=dict()
     info.update(metadata(f))
-    info["Title"]="{0}--{1}".format(filename, info["UUID"][0:5])
+    fileshort=os.path.basename(filename)
+    info["Title"]="{0}--{1}".format(fileshort, info["UUID"][0:5])
     outfile="report.tex"
     write_report(info, outfile)
 

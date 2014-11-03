@@ -13,7 +13,7 @@ using RandGen=afidd::rng::mt19937;
 //using RandGen=boost::mt19937;
 
 int64_t SEIR_run(double end_time, const std::vector<int64_t>& seir_cnt,
-    const std::vector<TypedParameter<SIRParam>>& parameters,
+    const std::map<SIRParam,TypedParameter<SIRParam>>& parameters,
     std::map<ModelOptions,bool> opts,
     const PenContactGraph& pen_contact,
     std::shared_ptr<PenTrajectoryObserver> observer,

@@ -29,22 +29,27 @@ int main(int argc, char *argv[]) {
   size_t rand_seed=1;
   // Time is in years.
   using MyParm=TypedParameter<SIRParam>;
-  std::vector<MyParm> parameters;
+  std::map<SIRParam,MyParm> parameters;
   double beta=0.2485;
-  parameters.emplace_back(MyParm{SIRParam::Beta0, "beta0", beta,
+  auto add_param=[&parameters](MyParm p) {
+    parameters[p.kind]=p;
+  };
+  add_param(MyParm{SIRParam::Beta0, "beta0", beta,
     "density-dependent infection rate within a pen"});
-  parameters.emplace_back(MyParm{SIRParam::Beta1, "beta1", beta/10,
+  add_param(MyParm{SIRParam::Beta1, "beta1", beta/10,
     "density-dependent infection rate across a fence"});
-  parameters.emplace_back(MyParm{SIRParam::Beta2, "beta2", beta/1000,
+  add_param(MyParm{SIRParam::Beta2, "beta2", beta/1000,
     "density-dependent infection rate to any other animal"});
-  parameters.emplace_back(MyParm{SIRParam::RiderMove,
+  add_param(MyParm{SIRParam::RiderMove,
     "ridermove", 1.0/(15/(60*24.0)), "rate for rider to move pens"});
-  parameters.emplace_back(MyParm{SIRParam::RiderRecover,
+  add_param(MyParm{SIRParam::RiderRecover,
     "riderrecover", 24, "rider recover from carrying disease"});
-  parameters.emplace_back(MyParm{SIRParam::RiderInfect,
+  add_param(MyParm{SIRParam::RiderInfect,
     "riderinfect", beta, "rate for rider to infect in pen"});
-  parameters.emplace_back(MyParm{SIRParam::RiderGetInfected,
+  add_param(MyParm{SIRParam::RiderGetInfected,
     "ridergetinfected", beta, "rate for rider to pick up infection"});
+  add_param(MyParm{SIRParam::PenTurnoverDays,
+    "penturnoverdays", 133.0, "how many days from entrance to slaughter"});
   FMDV_Mardones_Nonexponential(parameters);
   FMDV_Mardones_Exponential(parameters);
   auto model_opts=model_options();
@@ -111,6 +116,10 @@ int main(int argc, char *argv[]) {
       po::value<bool>(&model_opts[ModelOptions::AllToAllInfection])->
       default_value(model_opts[ModelOptions::AllToAllInfection]),
       "Whether there is a background infection between any two pens.")
+    ("replace",
+      po::value<bool>(&model_opts[ModelOptions::PenReplace])->
+      default_value(model_opts[ModelOptions::PenReplace]),
+      "Whether to change a pen to susceptible every penturnoverdays days.")
     ("datafile",
       po::value<std::string>(&data_file)->default_value(data_file),
       "Write to this data file.")
@@ -128,9 +137,9 @@ int main(int argc, char *argv[]) {
     ;
 
   for (auto& p : parameters) {
-    desc.add_options()(p.name.c_str(),
-      po::value<double>(&p.value)->default_value(p.value),
-      p.description.c_str());
+    desc.add_options()(p.second.name.c_str(),
+      po::value<double>(&p.second.value)->default_value(p.second.value),
+      p.second.description.c_str());
   }
 
   po::variables_map vm;
@@ -173,7 +182,7 @@ int main(int argc, char *argv[]) {
     <<" "<<seir_init[2] << " "<<seir_init[3];
 
   for (auto& showp : parameters) {
-    BOOST_LOG_TRIVIAL(info)<<showp.name<<" "<<showp.value;
+    BOOST_LOG_TRIVIAL(info)<<showp.second.name<<" "<<showp.second.value;
   }
 
   PenContactGraph pen_graph;
