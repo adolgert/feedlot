@@ -19,7 +19,6 @@ def smoothed2d():
     logger.debug("y shape {0}".format(y.shape))
 
     fig, ax=plt.subplots(1, 1, figsize=(6,6))
-    print(type(fig))
     #ax=fig.add_axes(extents)
     axes=ax.imshow(ds, origin="lower",
         extent=extents, interpolation="none",
@@ -28,7 +27,6 @@ def smoothed2d():
     ax.set_xlabel("Time [days]")
     ax.set_ylabel("Individuals [count]")
     ax.set_title("Prevalence of Infection (E+I)")
-    logger.debug(type(axes))
     plt.savefig("ensemble_smoothed.pdf", format="pdf")
 
 

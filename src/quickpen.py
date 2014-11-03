@@ -136,8 +136,8 @@ class all_states(object):
         self.t=list()
 
     def observe(self, total_trajectory, times):
-        self.seir_.append(total_trajectory)
-        self.t.append(times)
+        self.seir_.append(total_trajectory[:,:])
+        self.t.append(times[:])
 
     def seir(self):
         return np.vstack(self.seir_)

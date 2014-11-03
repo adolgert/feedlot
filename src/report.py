@@ -51,9 +51,6 @@ def metadata(h5f):
         param_dict[k]=v[0]
     info["parameters"]=param_dict
 
-    print(type(attrs['uuid']))
-    print(attrs['uuid'])
-    print(attrs['uuid'].shape)
     info['UUID']=attrs['uuid'].tostring().decode("utf-8")
     return info
 
@@ -68,7 +65,10 @@ def write_report(info, outfile):
 
     provenance_table=["\\begin{tabular}{ll}", "Trait & Value \\\\ \\hline"]
     provenance_table.append("Compile time & {0} \\\\".format(info["CompileTime"]))
-    provenance_table.append("Code repository & \\href{{{0}}}{{{1}}} \\\\".format(info["RepoUrl"], info["RepoEnglish"]))
+    if "RepoUrl" in info:
+        provenance_table.append(
+            "Code repository & \\href{{{0}}}{{{1}}} \\\\".format(
+                info["RepoUrl"], info["RepoEnglish"]))
     provenance_table.append("Initial values & {0} \\\\".format(info["InitialValues"]))
     provenance_table.append("Unique Tag & {0} \\\\".format(info["UUID"]))
     provenance_table.append("\\end{tabular}")
@@ -140,7 +140,6 @@ def summaries(h5f):
     penplot.total_infected_count_plot(aggregate[0].data)
     penplot.end_time_plot(aggregate[1].data)
     all_states_obj=aggregate[2]
-    print(type(all_states_obj))
     seir=all_states_obj.seir()
     logger.debug("seir shape {0}".format(seir.shape))
     times=all_states_obj.times()
@@ -231,16 +230,16 @@ def make_report(filename):
     write_report(info, outfile)
 
 
-def parallel_generate(filename, timeout=3.14e7):
+def parallel_generate(filename, pyfile, timeout=3.14e7):
     '''
     Timeout in minutes.
     '''
     pyex=sys.executable
     todo=[
-      [pyex, "report.py", "--file", filename, "--multiples"],
-      [pyex, "report.py", "--file", filename, "--summary"],
-      [pyex, "report.py", "--file", filename, "--lines"],
-      [pyex, "report.py", "--file", filename, "--binned"]
+      [pyex, pyfile, "--file", filename, "--multiples"],
+      [pyex, pyfile, "--file", filename, "--summary"],
+      [pyex, pyfile, "--file", filename, "--lines"],
+      [pyex, pyfile, "--file", filename, "--binned"]
     ]
     processes=list()
     for t in todo:
@@ -249,9 +248,10 @@ def parallel_generate(filename, timeout=3.14e7):
     for check in range(int(timeout*60/interval)):
         done=list()
         for idx, proc in enumerate(processes):
-            if proc.poll()==0:
+            retcode=proc.poll()
+            if retcode!=None:
                 done.append(idx)
-                logging.info("{0} completed".format(todo[idx][4]))
+                logging.info("{0} completed {1}".format(todo[idx][4], retcode))
         done.reverse()
         for d in done:
             processes.pop(d)
@@ -276,25 +276,30 @@ if __name__ == "__main__":
 
     args=parser.parse_args()
 
-    filename=args.file
+    pyfile=os.path.abspath(__file__)
+    filename=os.path.abspath(args.file)
+    dirname=".".join(os.path.basename(filename).split(".")[:-1])+"d"
     if args.report:
         make_report(filename)
         subprocess.call(["latexmk", "-pdf", "report"])
-    elif args.lines:
-        f=h5py.File(filename, "r")
-        trajectory_lines(f)
-    elif args.binned:
-        f=h5py.File(filename, "r")
-        binned_trajectories(f)
-    elif args.multiples:
-        f=h5py.File(filename, "r")
-        single_trajectory_small_multiples(f)
-    elif args.summary:
-        f=h5py.File(filename, "r")
-        summaries(f)
+        sys.exit()
     elif args.generate:
-        parallel_generate(filename)
+        if not os.path.exists(dirname):
+            os.mkdir(dirname)
+        os.chdir(dirname)
+        parallel_generate(filename, pyfile)
         make_report(filename)
         subprocess.call(["latexmk", "-pdf", "report"])
+        sys.exit()
+
+    f=h5py.File(filename, "r")
+    if args.lines:
+        trajectory_lines(f)
+    elif args.binned:
+        binned_trajectories(f)
+    elif args.multiples:
+        single_trajectory_small_multiples(f)
+    elif args.summary:
+        summaries(f)
     if not parser.any_function():
         parser.print_help()

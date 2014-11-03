@@ -32,7 +32,7 @@ class BetaEstimate(object):
         value, uncertainty=scipy.integrate.quad(integrand, 0, 20)
         return (value-self.r0)**2
 
-for R0 in [2.0, 4.0, 8.0, 112.0]:
+for R0 in [2.0, 4.0, 8.0, 56.0, 112.0]:
     R02=BetaEstimate(R0)
     res=scipy.optimize.minimize(R02, 0.23*R0)
     print("Minimum for R0={0} is beta={1}".format(R0, res.x[0]))
