@@ -58,6 +58,10 @@ class HDFFile {
   std::vector<int64_t> InitialValues() const;
   std::vector<int64_t> LoadInitialPen(const std::string dataset_name) const;
   std::array<int64_t,2> EventsInFile() const;
+  bool LoadTrajectoryCounts(const std::string& name,
+    std::vector<int64_t>& seirc, int64_t& cnt) const;
+  bool LoadTrajectoryTimes(const std::string& name,
+    std::vector<double>& time, int64_t& cnt) const;
   TrajectoryType LoadTrajectoryFromPens(const std::string dataset_name) const;
  private:
   template<typename TrajType>

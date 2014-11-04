@@ -421,6 +421,69 @@ std::array<int64_t, 2> HDFFile::EventsInFile() const {
 }
 
 
+bool HDFFile::LoadTrajectoryCounts(const std::string& name,
+    std::vector<int64_t>& seirc, int64_t& cnt) const {
+  std::stringstream name_str;
+  name_str<<"/trajectory/"<<name<<"/seirtotal";
+  hid_t ds_id=H5Dopen(file_id_, name_str.str().c_str(), H5P_DEFAULT);
+  if (ds_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not read dataset "<<name;
+    return false;
+  }
+  hid_t space_id=H5Dget_space(ds_id);
+  int ndims=H5Sget_simple_extent_ndims(space_id);
+  if (ndims!=2) {
+    BOOST_LOG_TRIVIAL(error)<<"initial values dataset has wrong number of "
+        <<"dimensions? "<<ndims;
+    return false;
+  }
+  hsize_t dims[ndims];
+  hsize_t maxdims[ndims];
+  ndims=H5Sget_simple_extent_dims(space_id, dims, maxdims);
+  if (ndims<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Couldn't get extent of dataset?";
+    return false;
+  }
+  cnt=dims[0];
+  herr_t read_status=H5Dread(ds_id, H5T_STD_I64LE, space_id, H5S_ALL,
+      H5P_DEFAULT, &seirc[0]);
+  H5Sclose(space_id);
+  H5Dclose(ds_id);
+  return true;
+}
+
+bool HDFFile::LoadTrajectoryTimes(const std::string& name,
+    std::vector<double>& time, int64_t& cnt) const {
+  std::stringstream name_str;
+  name_str<<"/trajectory/"<<name<<"/seirtotaltimes";
+  hid_t ds_id=H5Dopen(file_id_, name_str.str().c_str(), H5P_DEFAULT);
+  if (ds_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not read dataset "<<name;
+    return false;
+  }
+  hid_t space_id=H5Dget_space(ds_id);
+  int ndims=H5Sget_simple_extent_ndims(space_id);
+  if (ndims!=1) {
+    BOOST_LOG_TRIVIAL(error)<<"initial values dataset has wrong number of "
+        <<"dimensions? "<<ndims;
+    return false;
+  }
+  hsize_t dims[ndims];
+  hsize_t maxdims[ndims];
+  ndims=H5Sget_simple_extent_dims(space_id, dims, maxdims);
+  if (ndims<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Couldn't get extent of dataset?";
+    return false;
+  }
+  cnt=dims[0];
+  herr_t read_status=H5Dread(ds_id, H5T_NATIVE_DOUBLE, space_id, H5S_ALL,
+      H5P_DEFAULT, &time[0]);
+  H5Sclose(space_id);
+  H5Dclose(ds_id);
+  return true;
+}
+
+
 std::vector<TrajectoryEntry> HDFFile::LoadTrajectoryFromPens(
     const std::string dataset_name) const {
   std::stringstream initial_name_str;
