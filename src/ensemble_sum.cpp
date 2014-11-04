@@ -23,6 +23,7 @@ void watermark_for_orientation(std::vector<double>& interpolant,
 }
 
 int main(int argc, char* argv[]) {
+  std::string filename("rider.h5");
   namespace po=boost::program_options;
   po::options_description desc("Generate ensemble plot from datasets.");
 
@@ -32,7 +33,7 @@ int main(int argc, char* argv[]) {
   afidd::LogInit(log_level);
 
 
-  HDFFile file("rider.h5");
+  HDFFile file(filename);
   file.OpenRead();
   auto initial=file.InitialValues();
   int64_t total=std::accumulate(initial.begin(), initial.end(), int64_t{0});
@@ -44,6 +45,21 @@ int main(int argc, char* argv[]) {
   event_cnt=std::get<1>(evt);
   BOOST_LOG_TRIVIAL(debug)<<"Trajectories "<<trajectory_cnt
       <<" events "<<event_cnt;
+
+  auto end=file.EndTimes();
+  const auto& times=std::get<0>(end);
+  const auto& events=std::get<1>(end);
+  BOOST_LOG_TRIVIAL(info)<<"Found end times "<<std::get<0>(end).size();
+  for (int et_idx=0; et_idx<std::get<0>(end).size(); ++et_idx) {
+    std::cout << std::get<0>(end)[et_idx] << '\t' <<
+        std::get<1>(end)[et_idx] << std::endl;
+  }
+  double max_tr_time=*std::max_element(times.begin(), times.end());
+  int64_t max_event=*std::max_element(events.begin(), events.end());
+  int64_t total_event_cnt=std::accumulate(events.begin(), events.end(),
+    int64_t{0});
+  BOOST_LOG_TRIVIAL(info)<<"max time "<<max_tr_time<<" max event "<<max_event
+      <<" total events "<<total_event_cnt;
 
   // Because the state at t=0.0 is added to the event count.
   int64_t sample_cnt=trajectory_cnt+event_cnt;
@@ -58,7 +74,7 @@ int main(int argc, char* argv[]) {
   int64_t entry_idx=0;
   auto traj_names=file.Trajectories();
   for (auto traj_name : traj_names) {
-    BOOST_LOG_TRIVIAL(debug)<<"Loading file "<<traj_name;
+    BOOST_LOG_TRIVIAL(trace)<<"Loading file "<<traj_name;
     auto trajectory=file.LoadTrajectoryFromPens(traj_name);
     for (const auto& entry : trajectory) {
       // Time is the x, the first dimension.

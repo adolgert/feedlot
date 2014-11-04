@@ -34,6 +34,53 @@ herr_t IterateTrajectories(hid_t group_id, const char* group_name,
 }
 
 
+using EndType=std::tuple<std::vector<double>,std::vector<int64_t>>;
+// Take just the last value from a dataset.
+herr_t WalkFindEnd(hid_t group_id, const char* group_name,
+  const H5L_info_t* info, void* op_data) {
+  auto end=static_cast<EndType*>(op_data);
+
+  std::stringstream state_ds_str;
+  state_ds_str<<group_name<<"/seirtotaltimes";
+  hid_t ds_id=H5Dopen(group_id, state_ds_str.str().c_str(), H5P_DEFAULT);
+  if (ds_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not open seirtotal for "<<group_name
+      <<" using "<<state_ds_str.str();
+      return -1;
+  }
+  hid_t space_id=H5Dget_space(ds_id);
+  int ndims=H5Sget_simple_extent_ndims(space_id);
+  hsize_t dims[ndims];
+  hsize_t maxdims[ndims];
+  ndims=H5Sget_simple_extent_dims(space_id, dims, maxdims);
+  if (ndims<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Couldn't get extent of dataset?";
+    return -2;
+  }
+
+  hsize_t one{1};
+  hid_t mem_space=H5Screate_simple(1, &one, NULL);
+  hid_t sub_file=H5Scopy(space_id);
+  hsize_t offset(dims[0]-1);
+  herr_t offset_status=H5Sselect_elements(sub_file, H5S_SELECT_SET, 1, &offset);
+  if (offset_status<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Couldn't offset dataspace";
+    return -3;
+  }
+
+  double value;
+  H5Dread(ds_id, H5T_NATIVE_DOUBLE, mem_space, sub_file, H5P_DEFAULT, &value);
+  std::get<0>(*end).push_back(value);
+  std::get<1>(*end).push_back(dims[0]);
+
+  H5Sclose(sub_file);
+  H5Sclose(mem_space);
+  H5Sclose(space_id);
+  H5Dclose(ds_id);
+  return 0;
+}
+
+
 herr_t TrajectoryNames(hid_t group_id, const char* relative_name,
   const H5L_info_t* info, void* op_data) {
   typedef std::vector<std::string> Names;
@@ -261,6 +308,34 @@ std::vector<std::string> HDFFile::Trajectories() const {
   }
   return name;
 }
+
+/*! How many events and what end times for each trajectory in a file.
+ */
+std::tuple<std::vector<double>,std::vector<int64_t>> HDFFile::EndTimes() const {
+  hid_t trajectory_group_id=H5Gopen(file_id_, "/trajectory", H5P_DEFAULT);
+  if (trajectory_group_id<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not open /trajectory group.";
+    assert(trajectory_group_id>=0);
+  }
+  H5G_info_t group_info;
+  herr_t gi_status=H5Gget_info(trajectory_group_id, &group_info);
+  assert(gi_status>=0);
+
+  EndType data;
+  std::get<0>(data).reserve(group_info.nlinks);
+  std::get<1>(data).reserve(group_info.nlinks);
+
+  herr_t iter_status=H5Literate(trajectory_group_id, H5_INDEX_NAME,
+    H5_ITER_NATIVE, NULL, WalkFindEnd, &data);
+  if (iter_status<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not iterate over trajectories to find "
+        <<"end times "<<iter_status;
+  }
+
+  H5Gclose(trajectory_group_id);
+  return data;
+}
+
 
 std::vector<int64_t> HDFFile::InitialValues() const {
   hid_t attr1_id=H5Aopen_by_name(file_id_, "/trajectory",

@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <vector>
 #include <map>
 #include <array>
@@ -53,6 +54,7 @@ class HDFFile {
 
   // Reading.
   std::vector<std::string> Trajectories() const;
+  std::tuple<std::vector<double>,std::vector<int64_t>> EndTimes() const;
   std::vector<int64_t> InitialValues() const;
   std::vector<int64_t> LoadInitialPen(const std::string dataset_name) const;
   std::array<int64_t,2> EventsInFile() const;
