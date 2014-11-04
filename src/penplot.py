@@ -84,10 +84,20 @@ def total_infected_plot(total_infected):
     kmf.plot()
     plt.xlabel("Total Infected [count]")
     plt.ylabel("Probability of at Least This Many")
-    plt.title("Total Infected Over Course")
+    plt.title("Total Infected By End of Outbreak")
     plt.grid(True)
     plt.savefig("total_infected_hist.pdf", format="pdf")
 
+def survival_susceptible(when_infected):
+    plt.clf()
+    kmf=lifelines.KaplanMeierFitter()
+    kmf.fit(when_infected, label="Total Infected")
+    kmf.plot()
+    plt.xlabel("Time of Infection [days]")
+    plt.ylabel("Probability of Survival to This Time")
+    plt.title("Survival of Infected During Outbreak")
+    plt.grid(True)
+    plt.savefig("survival_infected_hist.pdf", format="pdf")
 
 def total_infected_count_plot(total_infected):
     plt.clf()
@@ -130,6 +140,28 @@ def trajectory_density_plot(m1, m2, name):
     ax.set_title("Kernel Density Estimate of {0}".format(name))
     plt.savefig("trajectory_density_{0}.pdf".format(name), format="pdf")
 
+def trajectory_image(hist, x, y, name):
+    xmin=min(x)
+    xmax=max(x)
+    ymin=min(y)
+    ymax=max(y)
+    logger.debug("hist from min {0} to max {1}.".format(np.min(hist),
+            np.max(hist)))
+    hist=np.log(hist)
+    mn=np.max(hist)-5
+    hist[hist<mn]=-np.Inf
+    plt.clf()
+    fig=plt.figure()
+    ax=fig.add_subplot(111)
+    ax.imshow(hist, cmap=plt.cm.YlGn, origin="lower",
+        extent=[xmin, xmax, ymin, ymax],
+        aspect=0.6*(xmax-xmin)/(ymax-ymin))
+    ax.set_xlim([xmin, xmax])
+    ax.set_ylim([ymin, ymax])
+    ax.set_xlabel("Time [days]")
+    ax.set_ylabel("Infected Individuals [count]")
+    ax.set_title("Infecteds")
+    plt.savefig("trajectory_lines_{0}.pdf".format(name), format="pdf")
 
 def plot_trajectory_lines(file_trajectories):
     plt.clf()
@@ -153,7 +185,7 @@ def prevalence_by_day(binned):
     xl=np.linspace(0, daycnt-1, daycnt)
     xr=np.linspace(1, daycnt, daycnt)
     colors=["blue", "green", "black", "red"]
-    for compartment_idx in [1,2,4]:
+    for compartment_idx in [1, 2]:
         plt.hlines(binned[:daycnt,compartment_idx], xl, xr,
             color=colors[compartment_idx-1])
     plt.xlabel("Time [days]")

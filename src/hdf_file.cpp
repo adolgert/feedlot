@@ -618,13 +618,19 @@ bool HDFFile::Save2DPDF(const std::vector<double>& interpolant,
 bool HDFFile::Save1DArray(const std::vector<double>& x,
     const std::string& name) {
   ImageGroup();
-  this->Write1DFloat(image_group_, x, name);
+  return this->Write1DFloat(image_group_, x, name);
 }
 
 bool HDFFile::Save1DArray(const std::vector<int64_t>& x,
     const std::string& name) {
   ImageGroup();
-  this->Write1DInt(image_group_, x, name);
+  return this->Write1DInt(image_group_, x, name);
+}
+
+bool HDFFile::Save2DArray(const std::vector<int64_t>& x, int cols, 
+      const std::string& name) {
+  ImageGroup();
+  return this->Write2DInt(image_group_, x, cols, name);
 }
 
 bool HDFFile::WriteUUIDTo(hid_t group) const {
@@ -658,6 +664,28 @@ bool HDFFile::WriteUUIDTo(hid_t group) const {
   return true;
 }
 
+bool HDFFile::WriteImageAttribute(std::string attrib, std::string name) {
+  ImageGroup();
+  hsize_t adims=1;
+  hid_t space_id=H5Screate_simple(1, &adims, NULL);
+  hid_t strtype=H5Tcopy(H5T_C_S1);
+  herr_t strstatus=H5Tset_size(strtype, attrib.size());
+  if (strstatus<0) {
+    BOOST_LOG_TRIVIAL(error)
+      <<"Could not create string for image attribute.";
+      return false;
+  }
+  hid_t attr0_id=H5Acreate2(image_group_, name.c_str() , strtype,
+    space_id, H5P_DEFAULT, H5P_DEFAULT);
+  herr_t atstatus=H5Awrite(attr0_id, strtype, attrib.c_str());
+  if (atstatus<0) {
+    BOOST_LOG_TRIVIAL(error)<<"Could not write attribute "<<name;
+    return false;
+  }
+  H5Tclose(strtype);
+  H5Sclose(space_id);
+  return true;
+}
 
 bool HDFFile::Write1DFloat(hid_t group, const std::vector<double>& x,
     const std::string& name) {
@@ -679,6 +707,23 @@ bool HDFFile::Write1DInt(hid_t group, const std::vector<int64_t>& x,
   hsize_t dims[1];
   dims[0]=x.size();
   hid_t x_dspace=H5Screate_simple(1, dims, NULL);
+  hid_t x_id=H5Dcreate(group, name.c_str(), H5T_STD_I64LE,
+      x_dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  herr_t x_write=H5Dwrite(x_id, H5T_STD_I64LE, H5S_ALL, H5S_ALL,
+      H5P_DEFAULT, &x[0]);
+  H5Dclose(x_id);
+  H5Sclose(x_dspace);
+  return true;
+}
+
+
+bool HDFFile::Write2DInt(hid_t group, const std::vector<int64_t>& x,
+    int cols, const std::string& name) {
+  hsize_t dims[2];
+  dims[0]=x.size()/cols;
+  dims[1]=cols;
+  assert(x.size()%cols==0);
+  hid_t x_dspace=H5Screate_simple(2, dims, NULL);
   hid_t x_id=H5Dcreate(group, name.c_str(), H5T_STD_I64LE,
       x_dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   herr_t x_write=H5Dwrite(x_id, H5T_STD_I64LE, H5S_ALL, H5S_ALL,

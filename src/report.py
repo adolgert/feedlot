@@ -128,25 +128,31 @@ def write_report(info, outfile):
     f.write(text)
 
 
-def single_trajectory_small_multiples(h5f):
-    dsetname=quickpen.trajectories(h5f)[0]
+def single_trajectory_small_multiples(h5f, h5i):
+    dsetname=h5i["/images"].attrs["largesttrajectory"].tostring().decode("utf-8")
+    #dsetname=quickpen.trajectories(h5f)[0]
     tr,times,obs=quickpen.per_pen_trajectory(h5f, dsetname)
     penplot.small_multiples(tr, times, obs, 4)
 
 
-def summaries(h5f):
-    aggregate=quickpen.summary_of_ensemble(h5f, -1)
-    penplot.total_infected_plot(aggregate[0].data)
-    penplot.total_infected_count_plot(aggregate[0].data)
-    penplot.end_time_plot(aggregate[1].data)
-    all_states_obj=aggregate[2]
-    seir=all_states_obj.seir()
-    logger.debug("seir shape {0}".format(seir.shape))
-    times=all_states_obj.times()
-    logger.debug("times shape {0}".format(times.shape))
-    penplot.trajectory_density_plot(seir[:,1], times, "Exposed")
-    penplot.trajectory_density_plot(seir[:,2], times, "Infectious")
-    penplot.trajectory_density_plot(seir[:,1]+seir[:,2], times, "Infected")
+def summaries(h5f, h5i):
+    #aggregate=quickpen.summary_of_ensemble(h5f, -1)
+
+    total_infected=h5i["/images/totalinfected"][:]
+    total_infected.sort()
+    end_time=h5i["/images/endtime"][:]
+    end_time.sort()
+
+    penplot.total_infected_plot(total_infected)
+    penplot.total_infected_count_plot(total_infected)
+    penplot.end_time_plot(end_time)
+    penplot.survival_susceptible(h5i["/images/infectiontimes"])
+
+    infected_times=h5i["/images/trajectorydensityx"]
+    infected_counts=h5i["/images/trajectorydensityx"]
+    infected_hist=h5i["/images/trajectorydensity"]
+    penplot.trajectory_image(infected_hist, infected_times, infected_counts,
+        "Infected")
 
 def include_trajectory_density():
     return include_figure("trajectory_density_Infected.pdf", "0.7",
@@ -166,6 +172,11 @@ def include_end_time():
         "Each bar shows a count of how many realizations completed "+
         "at a given time.", "fig:endtimes")
 
+def survival_infected():
+    return include_figure("survival_infected_hist.pdf", "0.7",
+        "This shows the probability of survival to a time. "+
+        "", "fig:endtimes")
+
 def include_total_infected():
     return include_figure("total_infected_hist.pdf", "0.7",
         "Each bar shows the total number of realizations whose "
@@ -179,21 +190,36 @@ def trajectory_lines(h5f):
     penplot.plot_trajectory_lines(quickpen.FileTrajectories(h5f))
 
 def include_trajectory_lines():
-    return include_figure("trajectory_lines.pdf", "0.7",
+    return include_figure("trajectory_lines_Infected.pdf", "0.7",
         "Each line represents a separate realization from the simulation."+
         "This shows all infected individuals, whether exposed or infectious.",
         "fig:trajlines")
 
-def binned_trajectories(h5f):
-    binned=np.zeros((200, 5), np.float32)
-    ft=quickpen.FileTrajectories(h5f)
-    cnt=len(ft)
-    for i in range(len(ft)):
-        total, times=ft[i]
-        quickpen.add_to_binned_trajectory(binned, total, times)
-    binned/=cnt
-    logger.debug("binned {0}".format(binned))
-    penplot.prevalence_by_day(binned)
+def binned_trajectories(h5f, h5i):
+    prevalence=h5i["/images/prevalence"]
+    trajectories=quickpen.trajectories(h5f)
+    initial=quickpen.initial_values(h5f, trajectories[0])
+    initial=np.sum(initial[:,:4], axis=0)
+    logger.debug("binned_trajectories initial {0}".format(initial[:]))
+    total_individuals=np.sum(initial)
+    # only count trajectories that make it to this day
+    # denom=np.repeat(np.expand_dims(np.sum(prevalence, axis=1), axis=1),
+    #         5, axis=1)
+    denom=np.ones(prevalence.shape,
+        dtype=np.float)*total_individuals*len(trajectories)
+    normed=prevalence/denom
+    normed[np.isnan(normed)]=0
+    logger.debug("binned_trajectories normed type {0}".format(normed.dtype))
+    #logger.debug(normed)
+    # binned=np.zeros((200, 5), np.float32)
+    # ft=quickpen.FileTrajectories(h5f)
+    # cnt=len(ft)
+    # for i in range(len(ft)):
+    #     total, times=ft[i]
+    #     quickpen.add_to_binned_trajectory(binned, total, times)
+    # binned/=cnt
+    # logger.debug("binned {0}".format(binned))
+    penplot.prevalence_by_day(normed)
 
 def include_binned():
     return include_figure("prevalencebyday.pdf", "0.7",
@@ -231,16 +257,15 @@ def make_report(filename):
     write_report(info, outfile)
 
 
-def parallel_generate(filename, pyfile, timeout=3.14e7):
+def parallel_generate(filename, pyfile, imagefilename, timeout=3.14e7):
     '''
     Timeout in minutes.
     '''
     pyex=sys.executable
     todo=[
-      [pyex, pyfile, "--file", filename, "--multiples"],
-      [pyex, pyfile, "--file", filename, "--summary"],
-      [pyex, pyfile, "--file", filename, "--lines"],
-      [pyex, pyfile, "--file", filename, "--binned"]
+      [pyex, pyfile, "--file", filename, "--summary", imagefilename, "--multiples"],
+      [pyex, pyfile, "--file", filename, "--summary", imagefilename, "--summary"],
+      [pyex, pyfile, "--file", filename, "--summary", imagefilename, "--binned"]
     ]
     processes=list()
     for t in todo:
@@ -268,6 +293,8 @@ if __name__ == "__main__":
     parser=DefaultArgumentParser(description="Quick look at an H5 file")
     parser.add_argument("--file", dest="file", action="store",
         default="rider.h5", help="data file to read")
+    parser.add_argument("--image", dest="image", action="store",
+        default="image.h5", help="summary data from file")
     parser.add_function("report", "Build the report")
     parser.add_function("lines", "Write the image of all realizations")
     parser.add_function("binned", "Average daily prevalence")
@@ -279,6 +306,7 @@ if __name__ == "__main__":
 
     pyfile=os.path.abspath(__file__)
     filename=os.path.abspath(args.file)
+    imagefilename=os.path.abspath(args.image)
     dirname=".".join(os.path.basename(filename).split(".")[:-1])+"d"
     if args.report:
         make_report(filename)
@@ -288,19 +316,20 @@ if __name__ == "__main__":
         if not os.path.exists(dirname):
             os.mkdir(dirname)
         os.chdir(dirname)
-        parallel_generate(filename, pyfile)
+        parallel_generate(filename, pyfile, imagefilename)
         make_report(filename)
         subprocess.call(["latexmk", "-pdf", "report"])
         sys.exit()
 
     f=h5py.File(filename, "r")
+    h5i=h5py.File(imagefilename, "r")
     if args.lines:
         trajectory_lines(f)
     elif args.binned:
-        binned_trajectories(f)
+        binned_trajectories(f, h5i)
     elif args.multiples:
-        single_trajectory_small_multiples(f)
+        single_trajectory_small_multiples(f, h5i)
     elif args.summary:
-        summaries(f)
+        summaries(f, h5i)
     if not parser.any_function():
         parser.print_help()

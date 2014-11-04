@@ -55,7 +55,9 @@ class HDFFile {
 
   bool Save1DArray(const std::vector<double>& x, const std::string& name);
   bool Save1DArray(const std::vector<int64_t>& x, const std::string& name);
-
+  bool Save2DArray(const std::vector<int64_t>& x, int cols, 
+      const std::string& name);
+  bool WriteImageAttribute(std::string attrib, std::string name);
   // Reading.
   std::vector<std::string> Trajectories() const;
   std::tuple<std::vector<double>,std::vector<int64_t>> EndTimes() const;
@@ -78,6 +80,8 @@ class HDFFile {
     const std::string& name);
   bool Write1DInt(hid_t group, const std::vector<int64_t>& x,
     const std::string& name);
+  bool Write2DInt(hid_t group, const std::vector<int64_t>& x,
+    int cols, const std::string& name);
 };
 
 

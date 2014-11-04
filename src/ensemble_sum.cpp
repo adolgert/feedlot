@@ -87,12 +87,50 @@ class TrajectoryDensity {
 };
 
 
+class InfectionTimes {
+ public:
+  InfectionTimes(int64_t total_individuals, int64_t trajectory_cnt)
+  : compartment_cnt_(5), when_(trajectory_cnt*total_individuals,0), idx_{0},
+    have_init_(true), last_(compartment_cnt_, 0),
+    trajectory_cnt_(trajectory_cnt), trajectory_idx_(0) { }
+  void observe(int64_t const* seirc, double time) {
+    if (have_init_ && trajectory_idx_<trajectory_cnt_) {
+      if (seirc[1]>last_[1]) {
+        when_[idx_]=time;
+        ++idx_;
+      }
+    } else {
+      have_init_=true;
+    }
+    std::copy(seirc, seirc+compartment_cnt_, last_.begin());
+  }
+  void done_trajectory() {
+    have_init_=false;
+    ++trajectory_idx_;
+  }
+  const std::vector<double> data() {
+    BOOST_LOG_TRIVIAL(debug)<<"InfectionTimes size "<<idx_;
+    when_.resize(idx_);
+    std::sort(when_.begin(), when_.end());
+    return when_;
+  }
+ private:
+  bool have_init_;
+  size_t idx_;
+  int64_t trajectory_idx_;
+  int64_t trajectory_cnt_;
+  std::vector<double> when_;
+  int compartment_cnt_;
+  std::vector<int64_t> last_;
+};
+
+
 class PrevalenceIncidence {
  public:
   PrevalenceIncidence(int day_cnt, const std::vector<int64_t> initial)
   : compartment_cnt_(5), prevalence_day_start_(compartment_cnt_*(day_cnt+1), 0),
     incidence_on_day_(compartment_cnt_*(day_cnt+1), 0), initial_(initial),
-    last_prevalence_(initial), last_time_(0),
+    last_prevalence_(initial), last_time_(0), max_time_(day_cnt+1),
     new_since_last_prevalence_(compartment_cnt_,0)
   {
     assert(initial_.size()==compartment_cnt_);
@@ -104,7 +142,7 @@ class PrevalenceIncidence {
     while (time-last_time_>1) {
       for (int cidx=0; cidx<compartment_cnt_; ++cidx) {
         auto lp=last_prevalence_.at(cidx);
-        prevalence_day_start_.at(last_time_*compartment_cnt_+cidx)=lp;
+        prevalence_day_start_.at(last_time_*compartment_cnt_+cidx)+=lp;
       }
       for (int aidx=0; aidx<compartment_cnt_; ++aidx) {
         incidence_on_day_.at(last_time_*compartment_cnt_+aidx)
@@ -114,14 +152,25 @@ class PrevalenceIncidence {
       last_time_+=1;
     }
     for (int didx=0; didx<compartment_cnt_; ++didx) {
-      new_since_last_prevalence_.at(didx)+=seirc[didx]-last_prevalence_.at(didx);
+      auto diff=seirc[didx]-last_prevalence_.at(didx);
+      if (diff>0) {
+        new_since_last_prevalence_.at(didx)+=diff;
+      }
     }
     std::copy(seirc, seirc+compartment_cnt_, last_prevalence_.begin());
   }
   void done_trajectory() {
+    for (int t=last_time_+1; t<max_time_; ++t) {
+       for (int cidx=0; cidx<compartment_cnt_; ++cidx) {
+        auto lp=last_prevalence_.at(cidx);
+        prevalence_day_start_.at(last_time_*compartment_cnt_+cidx)=lp;
+      }
+    }
     last_prevalence_=initial_;
     last_time_=0;
   }
+  const std::vector<int64_t>& prevalence() { return prevalence_day_start_; }
+  const std::vector<int64_t>& incidence() { return incidence_on_day_; }
  private:
   int compartment_cnt_;
   // day_cnt_ x 5
@@ -135,6 +184,7 @@ class PrevalenceIncidence {
   // 5
   std::vector<int64_t> new_since_last_prevalence_;
   int last_time_;
+  int max_time_;
 };
 
 
@@ -159,6 +209,7 @@ int main(int argc, char* argv[]) {
   std::string log_level("info");
   int64_t hres=500;
   int64_t vres=500;
+  int64_t infection_times_cnt=100;
 
   namespace po=boost::program_options;
   po::options_description desc("Generate ensemble plot from datasets.");
@@ -171,6 +222,10 @@ int main(int argc, char* argv[]) {
       "Write to this data file.")
       ("res",
         po::value<int64_t>(&hres)->default_value(hres),
+        "Resolution of grid for aggregation")
+      ("infectiontimes",
+        po::value<int64_t>(&infection_times_cnt)->default_value(
+          infection_times_cnt),
         "Resolution of grid for aggregation")
       ("loglevel",
       po::value<std::string>(&log_level)->default_value(log_level),
@@ -227,6 +282,8 @@ int main(int argc, char* argv[]) {
   PrevalenceIncidence prevalence(
       static_cast<int>(std::ceil(max_tr_time)), initial);
   TotalInfected total_infected(trajectory_cnt);
+  int64_t it_trajectory_cnt=std::min(trajectory_cnt, infection_times_cnt);
+  InfectionTimes infection_times(total_individuals, it_trajectory_cnt);
 
   std::string max_trajectory_name;
   int64_t max_trajectory_len{0};
@@ -256,11 +313,13 @@ int main(int argc, char* argv[]) {
       five_percent_clinical.observe(entry, time[i]);
       density.observe(entry, time[i]);
       prevalence.observe(entry, time[i]);
+      infection_times.observe(entry, time[i]);
     }
     one_percent_clinical.done_trajectory();
     five_percent_clinical.done_trajectory();
     density.done_trajectory();
     prevalence.done_trajectory();
+    infection_times.done_trajectory();
 
     total_infected.observe(seirc, time, time_cnt);
   }
@@ -269,9 +328,14 @@ int main(int argc, char* argv[]) {
 
   HDFFile out(outfilename);
   out.Open();
+  out.WriteImageAttribute(max_trajectory_name, "largesttrajectory");
+  out.Save1DArray(times, "endtime");
   out.Save1DArray(one_percent_clinical.data(), "onepercentclinical");
   out.Save1DArray(five_percent_clinical.data(), "fivepercentclinical");
   out.Save1DArray(total_infected.data(), "totalinfected");
+  out.Save1DArray(infection_times.data(), "infectiontimes");
+  out.Save2DArray(prevalence.prevalence(), 5, "prevalence");
+  out.Save2DArray(prevalence.incidence(), 5, "incidence");
   auto xy=density.xy();
   out.Save2DPDF(density.data(), xy.first, xy.second, "trajectorydensity");
   out.Close();
