@@ -19,6 +19,7 @@
 class HDFFile {
   hid_t file_id_;
   hid_t trajectory_group_;
+  hid_t image_group_;
   std::string filename_;
   bool open_;
   unsigned int comp_cnt_;
@@ -50,7 +51,10 @@ class HDFFile {
 
   bool Save2DPDF(const std::vector<double>& interpolant,
     const std::vector<double>& x, const std::vector<double>& y,
-    std::string name) const;
+    std::string name);
+
+  bool Save1DArray(const std::vector<double>& x, const std::string& name);
+  bool Save1DArray(const std::vector<int64_t>& x, const std::string& name);
 
   // Reading.
   std::vector<std::string> Trajectories() const;
@@ -67,10 +71,13 @@ class HDFFile {
   template<typename TrajType>
   bool SaveTotalTimes(int seed, int idx,
     const TrajType& trajectory) const;
+  hid_t ImageGroup();
 
   bool WriteUUIDTo(hid_t group) const;
   bool Write1DFloat(hid_t group, const std::vector<double>& x,
-    const std::string& name) const;
+    const std::string& name);
+  bool Write1DInt(hid_t group, const std::vector<int64_t>& x,
+    const std::string& name);
 };
 
 

@@ -38,6 +38,7 @@ class ClinicalGreaterThan {
   void done_trajectory() {
     idx_++;
   }
+  const std::vector<double> data() { return when_; }
  private:
   int64_t val_;
   bool found_;
@@ -62,7 +63,7 @@ class TrajectoryDensity {
     data_[y*hres_+x]+=scale_;
   }
   void done_trajectory() {}
-  void report() {
+  std::pair<std::vector<double>,std::vector<double>> xy() {
     // The x value runs faster. time is the x.
     std::vector<double> x(hres_);
     for (int xidx=0; xidx<hres_; ++xidx) {
@@ -73,7 +74,9 @@ class TrajectoryDensity {
       // Don't rescale our reported axes.
       y[yidx]=yidx*(total_individuals_/static_cast<double>(vres_));
     }
+    return std::make_pair(x, y);
   }
+  const std::vector<double>& data() { return data_; }
  private:
   std::vector<double> data_;
   int64_t total_individuals_;
@@ -137,14 +140,15 @@ class PrevalenceIncidence {
 
 class TotalInfected {
  public:
-  TotalInfected(int64_t trajectory_cnt) : count(trajectory_cnt), idx_{0} {}
+  TotalInfected(int64_t trajectory_cnt) : count_(trajectory_cnt), idx_{0} {}
   void observe(const std::vector<int64_t>& seirc,
       const std::vector<double>& time, int64_t entry_cnt) {
-    count[idx_]=seirc[5*(entry_cnt-1)+3];
+    count_[idx_]=seirc[5*(entry_cnt-1)+3];
     ++idx_;
   }
+  const std::vector<int64_t> data() { return count_; }
  private:
-  std::vector<int64_t> count;
+  std::vector<int64_t> count_;
   size_t idx_;
 };
 
@@ -265,7 +269,11 @@ int main(int argc, char* argv[]) {
 
   HDFFile out(outfilename);
   out.Open();
-  //out.Save2DPDF(interpolant, x, y, "ensemble2d");
+  out.Save1DArray(one_percent_clinical.data(), "onepercentclinical");
+  out.Save1DArray(five_percent_clinical.data(), "fivepercentclinical");
+  out.Save1DArray(total_infected.data(), "totalinfected");
+  auto xy=density.xy();
+  out.Save2DPDF(density.data(), xy.first, xy.second, "trajectorydensity");
   out.Close();
   return 0;
 }

@@ -91,7 +91,7 @@ herr_t TrajectoryNames(hid_t group_id, const char* relative_name,
 
 HDFFile::HDFFile(const std::string& filename)
 : filename_(filename), open_(false), file_id_(0), trajectory_group_(0),
-  comp_cnt_{5}
+  comp_cnt_{5}, image_group_(0)
 {}
 
 HDFFile::~HDFFile() {}
@@ -288,6 +288,14 @@ bool HDFFile::Close() {
       herr_t group_status=H5Gclose(trajectory_group_);
       if (group_status<0) {
         BOOST_LOG_TRIVIAL(warning)<<"Could not close HDF5 group "<<group_status;
+        return false;
+      }
+    }
+    if (image_group_>0) {
+      herr_t group_status=H5Gclose(image_group_);
+      if (group_status<0) {
+        BOOST_LOG_TRIVIAL(warning)<<"Could not close HDF5 image group "
+            <<group_status;
         return false;
       }
     }
@@ -581,48 +589,43 @@ std::vector<TrajectoryEntry> HDFFile::LoadTrajectoryFromPens(
 
 bool HDFFile::Save2DPDF(const std::vector<double>& interpolant,
     const std::vector<double>& x, const std::vector<double>& y,
-    std::string name) const {
-  hid_t root=H5Gopen(file_id_, "/", H5P_DEFAULT);
-  htri_t bImages=H5Lexists(root, "images", H5P_DEFAULT);
-  if (bImages<0) {
-    BOOST_LOG_TRIVIAL(error), "Could not find if /images exists in file.";
-    return false;
-  }
-  hid_t image_group;
-  if (bImages==0) {
-    std::stringstream trajname;
-    trajname<<"/images";
-    BOOST_LOG_TRIVIAL(info)<<"Creating HDF5 directory "<<trajname.str();
-    image_group=H5Gcreate(file_id_, trajname.str().c_str(), H5P_DEFAULT,
-      H5P_DEFAULT, H5P_DEFAULT);
-  } else {
-    image_group=H5Gopen(file_id_, "/images", H5P_DEFAULT);
-  }
-  H5Gclose(root);
+    std::string name) {
+  ImageGroup();
 
   std::stringstream xstr;
   xstr<<name<<"x";
-  Write1DFloat(image_group, x, xstr.str());
+  Write1DFloat(image_group_, x, xstr.str());
   std::stringstream ystr;
   ystr<<name<<"y";
-  Write1DFloat(image_group, y, ystr.str());
+  Write1DFloat(image_group_, y, ystr.str());
 
   hsize_t dims[2];
   dims[0]=y.size();
   dims[1]=x.size();
+  assert(interpolant.size()==dims[0]*dims[1]);
   BOOST_LOG_TRIVIAL(debug)<<"Saving ensemble with dims "
       <<dims[0]<<" "<<dims[1];
   hid_t dspace=H5Screate_simple(2, dims, NULL);
-  hid_t ds_id=H5Dcreate(image_group, name.c_str(), H5T_IEEE_F64LE,
+  hid_t ds_id=H5Dcreate(image_group_, name.c_str(), H5T_IEEE_F64LE,
       dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
   herr_t interpolant_write=H5Dwrite(ds_id, H5T_IEEE_F64LE, H5S_ALL, H5S_ALL,
       H5P_DEFAULT, &interpolant[0]);
   H5Dclose(ds_id);
   H5Sclose(dspace);
-  H5Gclose(image_group);
   return true;
 }
 
+bool HDFFile::Save1DArray(const std::vector<double>& x,
+    const std::string& name) {
+  ImageGroup();
+  this->Write1DFloat(image_group_, x, name);
+}
+
+bool HDFFile::Save1DArray(const std::vector<int64_t>& x,
+    const std::string& name) {
+  ImageGroup();
+  this->Write1DInt(image_group_, x, name);
+}
 
 bool HDFFile::WriteUUIDTo(hid_t group) const {
   auto gen=boost::uuids::random_generator();
@@ -657,7 +660,7 @@ bool HDFFile::WriteUUIDTo(hid_t group) const {
 
 
 bool HDFFile::Write1DFloat(hid_t group, const std::vector<double>& x,
-    const std::string& name) const {
+    const std::string& name) {
   hsize_t dims[1];
   dims[0]=x.size();
   hid_t x_dspace=H5Screate_simple(1, dims, NULL);
@@ -668,4 +671,43 @@ bool HDFFile::Write1DFloat(hid_t group, const std::vector<double>& x,
   H5Dclose(x_id);
   H5Sclose(x_dspace);
   return true;
+}
+
+
+bool HDFFile::Write1DInt(hid_t group, const std::vector<int64_t>& x,
+    const std::string& name) {
+  hsize_t dims[1];
+  dims[0]=x.size();
+  hid_t x_dspace=H5Screate_simple(1, dims, NULL);
+  hid_t x_id=H5Dcreate(group, name.c_str(), H5T_STD_I64LE,
+      x_dspace, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+  herr_t x_write=H5Dwrite(x_id, H5T_STD_I64LE, H5S_ALL, H5S_ALL,
+      H5P_DEFAULT, &x[0]);
+  H5Dclose(x_id);
+  H5Sclose(x_dspace);
+  return true;
+}
+
+hid_t HDFFile::ImageGroup() {
+  if (image_group_>0) {
+    return image_group_;
+  }
+  hid_t root=H5Gopen(file_id_, "/", H5P_DEFAULT);
+  htri_t bImages=H5Lexists(root, "images", H5P_DEFAULT);
+  if (bImages<0) {
+    BOOST_LOG_TRIVIAL(error), "Could not find if /images exists in file.";
+    return false;
+  }
+  hid_t image_group;
+  if (bImages==0) {
+    std::stringstream trajname;
+    trajname<<"/images";
+    BOOST_LOG_TRIVIAL(info)<<"Creating HDF5 directory "<<trajname.str();
+    image_group_=H5Gcreate(file_id_, trajname.str().c_str(), H5P_DEFAULT,
+      H5P_DEFAULT, H5P_DEFAULT);
+  } else {
+    image_group=H5Gopen(file_id_, "/images", H5P_DEFAULT);
+  }
+  H5Gclose(root);
+  return image_group_;
 }
