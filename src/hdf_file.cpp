@@ -40,13 +40,11 @@ herr_t WalkFindEnd(hid_t group_id, const char* group_name,
   const H5L_info_t* info, void* op_data) {
   auto end=static_cast<EndType*>(op_data);
 
-  std::stringstream state_ds_str;
-  state_ds_str<<group_name<<"/seirtotaltimes";
-  hid_t ds_id=H5Dopen(group_id, state_ds_str.str().c_str(), H5P_DEFAULT);
+  hid_t dsg_id=H5Gopen(group_id, group_name, H5P_DEFAULT);
+  hid_t ds_id=H5Dopen(dsg_id, "seirtotaltimes", H5P_DEFAULT);
   if (ds_id<0) {
-    BOOST_LOG_TRIVIAL(error)<<"Could not open seirtotal for "<<group_name
-      <<" using "<<state_ds_str.str();
-      return -1;
+    BOOST_LOG_TRIVIAL(error)<<"Could not open seirtotal for "<<group_name;
+    return -1;
   }
   hid_t space_id=H5Dget_space(ds_id);
   int ndims=H5Sget_simple_extent_ndims(space_id);
@@ -77,6 +75,7 @@ herr_t WalkFindEnd(hid_t group_id, const char* group_name,
   H5Sclose(mem_space);
   H5Sclose(space_id);
   H5Dclose(ds_id);
+  H5Gclose(dsg_id);
   return 0;
 }
 
@@ -164,6 +163,10 @@ bool HDFFile::OpenRead(bool readwrite) {
   if (file_id_<0) {
     BOOST_LOG_TRIVIAL(error)<<"Could not open file for reading "<<filename_;
     return false;
+  }
+  if (H5Lexists(file_id_, "/trajectory", H5P_DEFAULT)!=0) {
+    BOOST_LOG_TRIVIAL(debug)<<"Opening /trajectory";
+    trajectory_group_=H5Gopen(file_id_, "/trajectory", H5P_DEFAULT);
   }
 
   open_=true;
@@ -301,8 +304,8 @@ bool HDFFile::Close() {
 
 std::vector<std::string> HDFFile::Trajectories() const {
   std::vector<std::string> name;
-  herr_t find_status=H5Literate_by_name(file_id_, "/trajectory", H5_INDEX_NAME,
-    H5_ITER_INC, NULL, TrajectoryNames, &name, H5P_DEFAULT);
+  herr_t find_status=H5Literate(trajectory_group_, H5_INDEX_NAME,
+    H5_ITER_NATIVE, NULL, TrajectoryNames, &name);
   if (find_status<0) {
     BOOST_LOG_TRIVIAL(error)<<"Could not iterate over groups in file.";
   }
@@ -312,27 +315,21 @@ std::vector<std::string> HDFFile::Trajectories() const {
 /*! How many events and what end times for each trajectory in a file.
  */
 std::tuple<std::vector<double>,std::vector<int64_t>> HDFFile::EndTimes() const {
-  hid_t trajectory_group_id=H5Gopen(file_id_, "/trajectory", H5P_DEFAULT);
-  if (trajectory_group_id<0) {
-    BOOST_LOG_TRIVIAL(error)<<"Could not open /trajectory group.";
-    assert(trajectory_group_id>=0);
-  }
   H5G_info_t group_info;
-  herr_t gi_status=H5Gget_info(trajectory_group_id, &group_info);
+  herr_t gi_status=H5Gget_info(trajectory_group_, &group_info);
   assert(gi_status>=0);
 
   EndType data;
   std::get<0>(data).reserve(group_info.nlinks);
   std::get<1>(data).reserve(group_info.nlinks);
 
-  herr_t iter_status=H5Literate(trajectory_group_id, H5_INDEX_NAME,
+  herr_t iter_status=H5Literate(trajectory_group_, H5_INDEX_NAME,
     H5_ITER_NATIVE, NULL, WalkFindEnd, &data);
   if (iter_status<0) {
     BOOST_LOG_TRIVIAL(error)<<"Could not iterate over trajectories to find "
         <<"end times "<<iter_status;
   }
 
-  H5Gclose(trajectory_group_id);
   return data;
 }
 
@@ -396,7 +393,7 @@ std::array<int64_t, 2> HDFFile::EventsInFile() const {
     hid_t ds_id=H5Dopen(file_id_, initial_name, H5P_DEFAULT);
     if (ds_id<0) {
       BOOST_LOG_TRIVIAL(error)<<"Could not read dataset from file: "
-          <<initial_name_str.str();
+          <<initial_name_str.str()<<" error "<<ds_id;
       return {0, 0};
     }
 
@@ -416,6 +413,9 @@ std::array<int64_t, 2> HDFFile::EventsInFile() const {
     }
     trajectory_cnt+=1;
     event_cnt+=dims[0];
+
+    H5Dclose(space_id);
+    H5Dclose(ds_id);
   }
   return {trajectory_cnt, event_cnt};
 }
@@ -424,10 +424,12 @@ std::array<int64_t, 2> HDFFile::EventsInFile() const {
 bool HDFFile::LoadTrajectoryCounts(const std::string& name,
     std::vector<int64_t>& seirc, int64_t& cnt) const {
   std::stringstream name_str;
-  name_str<<"/trajectory/"<<name<<"/seirtotal";
-  hid_t ds_id=H5Dopen(file_id_, name_str.str().c_str(), H5P_DEFAULT);
+  name_str<<name<<"/seirtotal";
+  BOOST_LOG_TRIVIAL(debug)<<"Reading "<<name_str.str();
+  hid_t ds_id=H5Dopen(trajectory_group_, name_str.str().c_str(), H5P_DEFAULT);
   if (ds_id<0) {
-    BOOST_LOG_TRIVIAL(error)<<"Could not read dataset "<<name;
+    BOOST_LOG_TRIVIAL(error)<<"Could not read dataset "<<name
+      <<" error "<<ds_id;
     return false;
   }
   hid_t space_id=H5Dget_space(ds_id);
@@ -444,9 +446,13 @@ bool HDFFile::LoadTrajectoryCounts(const std::string& name,
     BOOST_LOG_TRIVIAL(error)<<"Couldn't get extent of dataset?";
     return false;
   }
+  if (seirc.size()<dims[0]*dims[1]) {
+    BOOST_LOG_TRIVIAL(debug)<<"LoadTrajectoryCounts: Resizing array";
+    seirc.resize(dims[0]*dims[1]);
+  }
   cnt=dims[0];
   herr_t read_status=H5Dread(ds_id, H5T_STD_I64LE, space_id, H5S_ALL,
-      H5P_DEFAULT, &seirc[0]);
+      H5P_DEFAULT, seirc.data());
   H5Sclose(space_id);
   H5Dclose(ds_id);
   return true;
@@ -455,8 +461,9 @@ bool HDFFile::LoadTrajectoryCounts(const std::string& name,
 bool HDFFile::LoadTrajectoryTimes(const std::string& name,
     std::vector<double>& time, int64_t& cnt) const {
   std::stringstream name_str;
-  name_str<<"/trajectory/"<<name<<"/seirtotaltimes";
-  hid_t ds_id=H5Dopen(file_id_, name_str.str().c_str(), H5P_DEFAULT);
+  name_str<<name<<"/seirtotaltimes";
+  BOOST_LOG_TRIVIAL(debug)<<"Reading "<<name_str.str();
+  hid_t ds_id=H5Dopen(trajectory_group_, name_str.str().c_str(), H5P_DEFAULT);
   if (ds_id<0) {
     BOOST_LOG_TRIVIAL(error)<<"Could not read dataset "<<name;
     return false;
@@ -475,9 +482,13 @@ bool HDFFile::LoadTrajectoryTimes(const std::string& name,
     BOOST_LOG_TRIVIAL(error)<<"Couldn't get extent of dataset?";
     return false;
   }
+  if (time.size()<dims[0]) {
+    BOOST_LOG_TRIVIAL(debug)<<"LoadTrajectoryTimes: resizing array";
+    time.resize(dims[0]);
+  }
   cnt=dims[0];
   herr_t read_status=H5Dread(ds_id, H5T_NATIVE_DOUBLE, space_id, H5S_ALL,
-      H5P_DEFAULT, &time[0]);
+      H5P_DEFAULT, time.data());
   H5Sclose(space_id);
   H5Dclose(ds_id);
   return true;
@@ -560,6 +571,7 @@ std::vector<TrajectoryEntry> HDFFile::LoadTrajectoryFromPens(
     trajectory[i+1].t=events[i].time;
   }
 
+  H5Dclose(type_id);
   H5Sclose(space_id);
   H5Dclose(ds_id);
   return trajectory;
@@ -607,6 +619,7 @@ bool HDFFile::Save2DPDF(const std::vector<double>& interpolant,
       H5P_DEFAULT, &interpolant[0]);
   H5Dclose(ds_id);
   H5Sclose(dspace);
+  H5Gclose(image_group);
   return true;
 }
 

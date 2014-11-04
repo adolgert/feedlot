@@ -1,4 +1,6 @@
 #define BOOST_LOG_DYN_LINK 1
+#include <algorithm>
+#include <vector>
 #include "boost/log/core.hpp"
 #include "boost/program_options.hpp"
 #include "smv.hpp"
@@ -25,7 +27,7 @@ void watermark_for_orientation(std::vector<double>& interpolant,
 class ClinicalGreaterThan {
  public:
   ClinicalGreaterThan(double fraction, int64_t total, int64_t trajectory_cnt)
-  : found_{false}, when_(trajectory_cnt), idx_{0} {
+  : found_{false}, when_(trajectory_cnt,0), idx_{0} {
     val_=static_cast<int64_t>(std::ceil(total*fraction));
   }
   void observe(int64_t const* seirc, double time) {
@@ -59,8 +61,7 @@ class TrajectoryDensity {
         infecteds*static_cast<double>(vres_)/total_individuals_);
     data_[y*hres_+x]+=scale_;
   }
-  void done_trajectory() {
-  }
+  void done_trajectory() {}
   void report() {
     // The x value runs faster. time is the x.
     std::vector<double> x(hres_);
@@ -83,6 +84,57 @@ class TrajectoryDensity {
 };
 
 
+class PrevalenceIncidence {
+ public:
+  PrevalenceIncidence(int day_cnt, const std::vector<int64_t> initial)
+  : compartment_cnt_(5), prevalence_day_start_(compartment_cnt_*(day_cnt+1), 0),
+    incidence_on_day_(compartment_cnt_*(day_cnt+1), 0), initial_(initial),
+    last_prevalence_(initial), last_time_(0),
+    new_since_last_prevalence_(compartment_cnt_,0)
+  {
+    assert(initial_.size()==compartment_cnt_);
+    assert(day_cnt>0);
+    assert(prevalence_day_start_.size()>0);
+    assert(prevalence_day_start_.size()==(day_cnt+1)*compartment_cnt_);
+  }
+  void observe(int64_t const* seirc, double time) {
+    while (time-last_time_>1) {
+      for (int cidx=0; cidx<compartment_cnt_; ++cidx) {
+        auto lp=last_prevalence_.at(cidx);
+        prevalence_day_start_.at(last_time_*compartment_cnt_+cidx)=lp;
+      }
+      for (int aidx=0; aidx<compartment_cnt_; ++aidx) {
+        incidence_on_day_.at(last_time_*compartment_cnt_+aidx)
+            +=new_since_last_prevalence_.at(aidx);
+      }
+      new_since_last_prevalence_.assign(compartment_cnt_, 0);
+      last_time_+=1;
+    }
+    for (int didx=0; didx<compartment_cnt_; ++didx) {
+      new_since_last_prevalence_.at(didx)+=seirc[didx]-last_prevalence_.at(didx);
+    }
+    std::copy(seirc, seirc+compartment_cnt_, last_prevalence_.begin());
+  }
+  void done_trajectory() {
+    last_prevalence_=initial_;
+    last_time_=0;
+  }
+ private:
+  int compartment_cnt_;
+  // day_cnt_ x 5
+  std::vector<int64_t> prevalence_day_start_;
+  // day_cnt_ x 5
+  std::vector<int64_t> incidence_on_day_;
+  // initial states, 5
+  std::vector<int64_t> initial_;
+  // 5
+  std::vector<int64_t> last_prevalence_;
+  // 5
+  std::vector<int64_t> new_since_last_prevalence_;
+  int last_time_;
+};
+
+
 class TotalInfected {
  public:
   TotalInfected(int64_t trajectory_cnt) : count(trajectory_cnt), idx_{0} {}
@@ -100,40 +152,57 @@ class TotalInfected {
 int main(int argc, char* argv[]) {
   std::string filename("rider.h5");
   std::string outfilename("image.h5");
+  std::string log_level("info");
   int64_t hres=500;
   int64_t vres=500;
 
   namespace po=boost::program_options;
   po::options_description desc("Generate ensemble plot from datasets.");
+  desc.add_options()
+      ("file",
+      po::value<std::string>(&filename)->default_value(filename),
+      "Read data from this file.")
+      ("outfile",
+      po::value<std::string>(&outfilename)->default_value(outfilename),
+      "Write to this data file.")
+      ("res",
+        po::value<int64_t>(&hres)->default_value(hres),
+        "Resolution of grid for aggregation")
+      ("loglevel",
+      po::value<std::string>(&log_level)->default_value(log_level),
+      "trace, debug, info, warn, error")
+      ;
 
-  std::string log_level{"debug"};
+  po::variables_map vm;
+  auto parsed_options=po::parse_command_line(argc, argv, desc);
+  po::store(parsed_options, vm);
+  po::notify(vm);
 
+  if (vm.count("help")) {
+    std::cout << desc << std::endl;
+    return 0;
+  }
 
   afidd::LogInit(log_level);
+  vres=hres;
 
-
+  BOOST_LOG_TRIVIAL(info)<<"Reading file "<<filename;
   HDFFile file(filename);
-  file.OpenRead();
+  file.OpenRead(false);
   auto initial=file.InitialValues();
   int64_t total_individuals=
       std::accumulate(initial.begin(), initial.end(), int64_t{0});
   BOOST_LOG_TRIVIAL(debug)<<"Total animals "<<total_individuals;
-  int64_t trajectory_cnt{0};
-  int64_t event_cnt{0};
-  auto evt=file.EventsInFile();
-  trajectory_cnt=std::get<0>(evt);
-  event_cnt=std::get<1>(evt);
-  BOOST_LOG_TRIVIAL(debug)<<"Trajectories "<<trajectory_cnt
-      <<" events "<<event_cnt;
-
   auto end=file.EndTimes();
   const auto& times=std::get<0>(end);
   const auto& events=std::get<1>(end);
   BOOST_LOG_TRIVIAL(info)<<"Found end times "<<std::get<0>(end).size();
-  for (int et_idx=0; et_idx<std::get<0>(end).size(); ++et_idx) {
+  int sample_cnt=(std::min)(times.size(), 10ul);
+  for (int et_idx=0; et_idx<sample_cnt; ++et_idx) {
     std::cout << std::get<0>(end)[et_idx] << '\t' <<
         std::get<1>(end)[et_idx] << std::endl;
   }
+  int64_t trajectory_cnt=times.size();
   double max_tr_time=*std::max_element(times.begin(), times.end());
   int64_t max_event=*std::max_element(events.begin(), events.end());
   int64_t total_event_cnt=std::accumulate(events.begin(), events.end(),
@@ -151,6 +220,8 @@ int main(int argc, char* argv[]) {
       trajectory_cnt);
   TrajectoryDensity density(total_individuals, max_tr_time, vres, hres,
       total_event_cnt);
+  PrevalenceIncidence prevalence(
+      static_cast<int>(std::ceil(max_tr_time)), initial);
   TotalInfected total_infected(trajectory_cnt);
 
   std::string max_trajectory_name;
@@ -158,11 +229,17 @@ int main(int argc, char* argv[]) {
 
   auto traj_names=file.Trajectories();
   for (auto traj_name : traj_names) {
-    BOOST_LOG_TRIVIAL(debug)<<"Loading file "<<traj_name;
+    BOOST_LOG_TRIVIAL(debug)<<"Loading dataset "<<traj_name;
     int64_t count_cnt;
     int64_t time_cnt;
-    file.LoadTrajectoryCounts(traj_name, seirc, count_cnt);
-    file.LoadTrajectoryTimes(traj_name, time, time_cnt);
+    bool tc_success=file.LoadTrajectoryCounts(traj_name, seirc, count_cnt);
+    if (!tc_success) {
+      return -1;
+    }
+    bool tt_success=file.LoadTrajectoryTimes(traj_name, time, time_cnt);
+    if (!tt_success) {
+      return -2;
+    }
     assert(count_cnt==time_cnt);
     if (time_cnt>max_trajectory_len) {
       max_trajectory_len=time_cnt;
@@ -174,10 +251,12 @@ int main(int argc, char* argv[]) {
       one_percent_clinical.observe(entry, time[i]);
       five_percent_clinical.observe(entry, time[i]);
       density.observe(entry, time[i]);
+      prevalence.observe(entry, time[i]);
     }
     one_percent_clinical.done_trajectory();
     five_percent_clinical.done_trajectory();
     density.done_trajectory();
+    prevalence.done_trajectory();
 
     total_infected.observe(seirc, time, time_cnt);
   }
