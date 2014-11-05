@@ -19,12 +19,21 @@ from default_parser import DefaultArgumentParser
 
 logger=logging.getLogger(__file__)
 
-def metadata(h5f):
+def metadata(h5f, h5i):
     info={}
     attrs=h5f['/trajectory'].attrs
     info['CompileTime']=attrs['COMPILETIME'].tostring().decode("utf-8")
     info['Makefile']=attrs['CONFIG'].tostring().decode("utf-8")
     gitrepo=attrs['VERSION'].tostring().decode("utf-8")
+    elapsed_ns=0
+    try:
+        print(list(attrs.keys()))
+        #print(attrs['totalelapsedwall'][0].decode()["utf-8"])
+        elapsed_ns=float(attrs['totalelapsedwall'][0])
+        print(elapsed_ns)
+    except:
+        pass
+    info["ElapsedSecondsAllTrajectories"]=elapsed_ns/1e9
     m=re.search("@([a-zA-Z0-9\-\.]+):(\w+)\/(\w+)\.git:(\w+)",gitrepo)
     if m:
         website, who, project, version=m.groups()
@@ -52,11 +61,47 @@ def metadata(h5f):
     info["parameters"]=param_dict
 
     info['UUID']=attrs['uuid'].tostring().decode("utf-8")
+
+    dsetname=h5i["/images"].attrs["largesttrajectory"].tostring().decode("utf-8")
+    init=quickpen.initial_values(h5f, dsetname)
+    info['PenCount']=init.shape[0]
+    info['TotalAnimals']=s+e+i+r
+    info['AnimalsPerPen']=int((s+e+i+r)/init.shape[0])
     return info
 
 
 def write_report(info, outfile):
-    options_table=["\\begin{tabular}{ll}", "Option & Value \\\\ \\hline"]
+    summary_table=["\\begin{tabular}{ll}", "Summary & Value \\\\ \\hline"]
+    beta0=float(info["CommandlineOptions"]["beta0"])
+    summary_table.append("$R_0$ within pen & {0} \\\\".format(3.585*beta0))
+    summary_table.append("Total pens & {0} \\\\".format(info['PenCount']))
+    summary_table.append("Total animals & {0} \\\\".format(info['TotalAnimals']))
+    summary_table.append("Animals per pen & {0} \\\\".format(info['AnimalsPerPen']))
+    pen_rider="yes"
+    if "rider" in info["CommandlineOptions"]:
+        if int(info["CommandlineOptions"]["rider"])==0:
+            pen_rider="no"
+    fenceline="yes"
+    if "disconnected" in info["CommandlineOptions"]:
+        if int(info["CommandlineOptions"]["disconnected"])==1:
+            fenceline="no"
+    alltoall="no"
+    if "otherpens" in info["CommandlineOptions"]:
+        if int(info["CommandlineOptions"]["otherpens"])==1:
+            alltoall="yes"
+    demog="no"
+    if "replace" in info["CommandlineOptions"]:
+        if int(info["CommandlineOptions"]["replace"])==1:
+            demog="yes"
+    summary_table.append("Pen rider & {0} \\\\".format(pen_rider))
+    summary_table.append("Fenceline contact & {0} \\\\".format(fenceline))
+    summary_table.append("Background all-to-all infection & {0} \\\\".format(alltoall))
+    summary_table.append("Replacement by pen & {0} \\\\".format(demog))
+    summary_table.append("\\end{tabular}")
+    summary_table="\n".join(summary_table)
+    info["SummaryTable"]=summary_table
+
+    options_table=["\\begin{tabular}{ll}", "Commandline Option & Value \\\\ \\hline"]
     for k, v in sorted(info["CommandlineOptions"].items()):
         options_table.append("{0} & {1} \\\\".format(k, v))
     options_table.append("\\end{tabular}")
@@ -71,10 +116,11 @@ def write_report(info, outfile):
                 info["RepoUrl"], info["RepoEnglish"]))
     provenance_table.append("Initial values & {0} \\\\".format(info["InitialValues"]))
     provenance_table.append("Unique Tag & {0} \\\\".format(info["UUID"]))
+    provenance_table.append("Wall time [s] & {0:7.2f} \\\\".format(info["ElapsedSecondsAllTrajectories"]))
     provenance_table.append("\\end{tabular}")
     info["CodeTraitsTable"]="\n".join(provenance_table)
 
-    params_table=["\\begin{tabular}{ll}", "Parameter & Value \\\\ \\hline"]
+    params_table=["\\begin{tabular}{ll}", "Internal Parameter & Value \\\\ \\hline"]
     param_names=list(info["parameters"].keys())
     param_names.sort()
     for k in param_names:
@@ -100,6 +146,8 @@ def write_report(info, outfile):
 \\date{{\\today}}
 \\author{{Generated with \\texttt{{report.py}}}}
 \\maketitle
+
+{SummaryTable}
 
 {CommandlineOptionsTable}
 
@@ -247,14 +295,16 @@ def include_figure(fileglob, scale, caption, label):
     return snippet
 
 
-def make_report(filename):
+def make_report(filename, h5i):
     f=h5py.File(filename, "r")
     info=dict()
-    info.update(metadata(f))
+    info.update(metadata(f, h5i))
     fileshort=os.path.basename(filename)
     info["Title"]="{0}--{1}".format(fileshort, info["UUID"][0:5])
-    outfile="report.tex"
+    outfile=".".join(os.path.basename(filename).split(".")[:-1]) + ".tex"
+    logger.info("writing report to {0}".format(outfile))
     write_report(info, outfile)
+    return outfile
 
 
 def parallel_generate(filename, pyfile, imagefilename, timeout=3.14e7):
@@ -263,9 +313,9 @@ def parallel_generate(filename, pyfile, imagefilename, timeout=3.14e7):
     '''
     pyex=sys.executable
     todo=[
-      [pyex, pyfile, "--file", filename, "--summary", imagefilename, "--multiples"],
-      [pyex, pyfile, "--file", filename, "--summary", imagefilename, "--summary"],
-      [pyex, pyfile, "--file", filename, "--summary", imagefilename, "--binned"]
+      [pyex, pyfile, "--file", filename, "--image", imagefilename, "--multiples"],
+      [pyex, pyfile, "--file", filename, "--image", imagefilename, "--summary"],
+      [pyex, pyfile, "--file", filename, "--image", imagefilename, "--binned"]
     ]
     processes=list()
     for t in todo:
@@ -308,21 +358,21 @@ if __name__ == "__main__":
     filename=os.path.abspath(args.file)
     imagefilename=os.path.abspath(args.image)
     dirname=".".join(os.path.basename(filename).split(".")[:-1])+"d"
+    f=h5py.File(filename, "r")
+    h5i=h5py.File(imagefilename, "r")
     if args.report:
-        make_report(filename)
-        subprocess.call(["latexmk", "-pdf", "report"])
+        texfile=make_report(filename, h5i)
+        subprocess.call(["latexmk", "-pdf", texfile])
         sys.exit()
     elif args.generate:
         if not os.path.exists(dirname):
             os.mkdir(dirname)
         os.chdir(dirname)
         parallel_generate(filename, pyfile, imagefilename)
-        make_report(filename)
-        subprocess.call(["latexmk", "-pdf", "report"])
+        texfile=make_report(filename, h5i)
+        subprocess.call(["latexmk", "-pdf", texfile])
         sys.exit()
 
-    f=h5py.File(filename, "r")
-    h5i=h5py.File(imagefilename, "r")
     if args.lines:
         trajectory_lines(f)
     elif args.binned:

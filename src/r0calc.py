@@ -19,7 +19,7 @@ class Integrand(object):
         return self.rv.pdf(t)*t*self.beta
     
 def determine_accuracy():
-    integrand=Integrand(0.26)
+    integrand=Integrand(1)
     for i in [10, 20, 1000]:
         value, uncertainty=scipy.integrate.quad(integrand, 0, i)
         print("{0} value {1}, uncertainty {2}".format(i, value, uncertainty))
