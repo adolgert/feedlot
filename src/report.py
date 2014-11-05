@@ -197,7 +197,7 @@ def summaries(h5f, h5i):
     penplot.survival_susceptible(h5i["/images/infectiontimes"])
 
     infected_times=h5i["/images/trajectorydensityx"]
-    infected_counts=h5i["/images/trajectorydensityx"]
+    infected_counts=h5i["/images/trajectorydensityy"]
     infected_hist=h5i["/images/trajectorydensity"]
     penplot.trajectory_image(infected_hist, infected_times, infected_counts,
         "Infected")

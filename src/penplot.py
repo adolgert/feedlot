@@ -141,6 +141,36 @@ def trajectory_density_plot(m1, m2, name):
     plt.savefig("trajectory_density_{0}.pdf".format(name), format="pdf")
 
 def trajectory_image(hist, x, y, name):
+    if type(hist) is h5py.Dataset:
+        hist=hist[:,:] # Take it out of hdf5
+        x=x[:]
+        y=y[:]
+    # Looking for 95%, 50%, and 5%
+    reverse_percentile=np.cumsum(hist[::-1,:], axis=0)
+    logger.debug(reverse_percentile[-1,0:200])
+    # max_accum=np.repeat(np.expand_dims(reverse_percentile[-1,:], axis=0),
+    #     y.shape[0], axis=0)
+    max_accum=np.max(reverse_percentile[-1,:])
+    logger.debug("ti: x n {0} x {1}, y n {2} x {3}".format(min(x),
+        max(x), min(y), max(y)))
+    logger.debug("trajectory_image max_accum {0} {1} {2}".format(3,
+        reverse_percentile.shape, y.shape))
+    ptiles=list()
+    for ptile in [0.05, 0.5, 0.95]:
+        diff=np.abs(reverse_percentile-ptile*max_accum)
+        rev95=np.argmin(diff, axis=0)
+        logger.debug("trajectory_image shape {0} diff {1} rev95 {2}".format(
+            rev95.shape, diff.shape, rev95.dtype))
+        ptiles.append(y[-rev95])
+
+    project_onto_y=np.sum(hist, axis=1)
+    accum=np.cumsum(project_onto_y[::-1])
+    cutoff=0.0001*accum[-1]
+    excise=len(accum[accum<cutoff])
+    hist=hist[:-excise,:]
+    y=y[:-excise]
+    logger.debug("ti: x n {0} x {1}, y n {2} x {3}".format(min(x),
+        max(x), min(y), max(y)))
     xmin=min(x)
     xmax=max(x)
     ymin=min(y)
@@ -148,10 +178,14 @@ def trajectory_image(hist, x, y, name):
     logger.debug("hist from min {0} to max {1}.".format(np.min(hist),
             np.max(hist)))
     hist=np.log(hist)
-    mn=np.max(hist)-5
+    mn=np.max(hist)-10
     hist[hist<mn]=-np.Inf
+    #hist=hist/np.max(hist)
     plt.clf()
     fig=plt.figure()
+    plt.plot(x, ptiles[0], color="blue")
+    plt.plot(x, ptiles[1], color="black")
+    plt.plot(x, ptiles[2], color="blue")
     ax=fig.add_subplot(111)
     ax.imshow(hist, cmap=plt.cm.YlGn, origin="lower",
         extent=[xmin, xmax, ymin, ymax],

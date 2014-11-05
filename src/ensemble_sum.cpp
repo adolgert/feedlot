@@ -53,16 +53,44 @@ class TrajectoryDensity {
       int64_t vres, int64_t hres, int64_t total_event_cnt)
   : total_individuals_{total_individuals+1}, max_time_{max_time+0.1},
     vres_{vres}, hres_{hres}, data_(hres*vres, 0.0),
-    scale_(1.0/total_event_cnt) {
+    scale_(1.0/total_event_cnt), last_hit_(-1),
+    total_y_(0), y_cnt_(0) {
   }
   void observe(int64_t const* seirc, double time) {
     int64_t infecteds=seirc[1]+seirc[2];
     int64_t x=static_cast<int64_t>(time*hres_/max_time_);
-    int64_t y=static_cast<int64_t>(
-        infecteds*static_cast<double>(vres_)/total_individuals_);
-    data_[y*hres_+x]+=scale_;
+    if (x!=last_hit_) {
+      if (last_hit_!=-1) {
+        int64_t y=static_cast<int64_t>(total_y_/y_cnt_);
+        // Because maybe the trajectory skipped an x-value.
+        // Fix with replication.
+        for (int64_t xi=last_hit_; xi<x; ++xi) {
+          data_[y*hres_+xi]+=scale_;
+        }
+        total_y_=0;
+        y_cnt_=0;
+        last_hit_=x;
+      } else {
+        // What if the first value is after 0?
+        for (int64_t zi=0; zi<x; ++zi) {
+          data_[0*hres_+zi]+=scale_;
+        }
+        last_hit_=x;
+      }
+    } else { /* still store new value */ }
+    total_y_+=infecteds*static_cast<double>(vres_)/total_individuals_;
+    y_cnt_+=1;
   }
-  void done_trajectory() {}
+  void done_trajectory() {
+    int64_t y=static_cast<int64_t>(total_y_/y_cnt_);
+    for (int64_t xi=last_hit_; xi<hres_; ++xi) {
+      data_[y*hres_+xi]+=scale_;
+    }
+
+    total_y_=0;
+    y_cnt_=0;
+    last_hit_=-1;
+  }
   std::pair<std::vector<double>,std::vector<double>> xy() {
     // The x value runs faster. time is the x.
     std::vector<double> x(hres_);
@@ -84,6 +112,9 @@ class TrajectoryDensity {
   int64_t vres_;
   int64_t hres_;
   double scale_;
+  int64_t last_hit_;
+  int64_t total_y_;
+  int64_t y_cnt_;
 };
 
 
@@ -207,8 +238,8 @@ int main(int argc, char* argv[]) {
   std::string filename("rider.h5");
   std::string outfilename("image.h5");
   std::string log_level("info");
-  int64_t hres=500;
-  int64_t vres=500;
+  int64_t hres=2000;
+  int64_t vres=2000;
   int64_t infection_times_cnt=100;
 
   namespace po=boost::program_options;
@@ -277,6 +308,7 @@ int main(int argc, char* argv[]) {
       trajectory_cnt);
   ClinicalGreaterThan five_percent_clinical(0.01, total_individuals,
       trajectory_cnt);
+  vres=std::min(total_individuals, vres);
   TrajectoryDensity density(total_individuals, max_tr_time, vres, hres,
       total_event_cnt);
   PrevalenceIncidence prevalence(
