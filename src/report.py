@@ -135,6 +135,7 @@ def write_report(info, outfile):
     info["BinnedPrevalence"]=include_binned()
     info["SmallMultiples"]=include_multiples()
     info["TrajectoryDensityInfected"]=include_trajectory_density()
+    info["SurvivalInfected"]=include_survival_infected()
 
     text="""\\documentclass{{article}}
 \\usepackage{{graphicx}}
@@ -154,6 +155,8 @@ def write_report(info, outfile):
 {ParametersTable}
 
 {CodeTraitsTable}
+
+{SurvivalInfected}
 
 {TrajectoryLines}
 
@@ -194,7 +197,11 @@ def summaries(h5f, h5i):
     penplot.total_infected_plot(total_infected)
     penplot.total_infected_count_plot(total_infected)
     penplot.end_time_plot(end_time)
-    penplot.survival_susceptible(h5i["/images/infectiontimes"])
+    when_infected=h5i["/images/infectiontimes"][:]
+    total_individuals=np.sum(h5f["/trajectory"].attrs['Initial Values'])
+    wi=np.append(when_infected, np.full(total_individuals*100-len(when_infected),
+        when_infected[-1]))
+    penplot.survival_susceptible(wi)
 
     infected_times=h5i["/images/trajectorydensityx"]
     infected_counts=h5i["/images/trajectorydensityy"]
@@ -220,10 +227,10 @@ def include_end_time():
         "Each bar shows a count of how many realizations completed "+
         "at a given time.", "fig:endtimes")
 
-def survival_infected():
+def include_survival_infected():
     return include_figure("survival_infected_hist.pdf", "0.7",
-        "This shows the probability of survival to a time. "+
-        "", "fig:endtimes")
+        "This shows the probability of survival of an animal to a time. "+
+        "", "fig:survivalinfected")
 
 def include_total_infected():
     return include_figure("total_infected_hist.pdf", "0.7",
