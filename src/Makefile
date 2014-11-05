@@ -18,8 +18,8 @@ BOOSTVARIANT=
 SEMIMARKOV=/usr/local/include/semimarkov-0.1
 HDF5=/usr/local/hdf5-1.8.11
 MCRAND=$(HOME)/Documents/mcrand
-FIGTREE=$(HOME)/Documents/figtree
-FIGTREE_LIBS=-L$(FIGTREE)/lib -lann_figtree_version -lfigtree
+#FIGTREE=$(HOME)/Documents/figtree
+#FIGTREE_LIBS=-L$(FIGTREE)/lib -lann_figtree_version -lfigtree
 
 -include local.mk
 # -DSMVHIDELOG -pg
@@ -70,10 +70,10 @@ individual: individual.cpp fmdv.hpp feedlot_places.hpp feedlot_individual_transi
 
 ensemble_sum: ensemble_sum.o hdf_file.o
 	$(CXX) ensemble_sum.o hdf_file.o $(INCLUDES) $(OPT) \
-	-o $@ $(FIGTREE_LIBS) $(LIBS)
+	-o $@ $(LIBS)
 
 ensemble_sum.o: ensemble_sum.cpp hdf_file.hpp
-	$(CXX) $< $(OPT) -I$(FIGTREE)/include $(INCLUDES) -c -o $@
+	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@
 
 hdf_file.o: hdf_file.cpp hdf_file.hpp trajectory.hpp parameter.hpp
 	$(CXX) $< $(OPT) $(INCLUDES) -c -o $@

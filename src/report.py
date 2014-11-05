@@ -72,7 +72,7 @@ def metadata(h5f, h5i):
 
 def write_report(info, outfile):
     summary_table=["\\begin{tabular}{ll}", "Summary & Value \\\\ \\hline"]
-    beta0=float(info["CommandlineOptions"]["beta0"])
+    beta0=float(info["parameters"]["beta0"])
     summary_table.append("$R_0$ within pen & {0} \\\\".format(3.585*beta0))
     summary_table.append("Total pens & {0} \\\\".format(info['PenCount']))
     summary_table.append("Total animals & {0} \\\\".format(info['TotalAnimals']))

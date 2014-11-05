@@ -4,7 +4,6 @@
 #include "boost/log/core.hpp"
 #include "boost/program_options.hpp"
 #include "smv.hpp"
-#include "figtree.h"
 #include "hdf_file.hpp"
 
 namespace smv=afidd::smv;
