@@ -29,7 +29,7 @@ to pathology, it is the prediction of Mardones, so we left it as-is for now.
 
 There are several different hazard rates for infection. Each individual
 is assigned to a pen. There are ``--penblocks`` city-blocks of pens, each
-of which has two rows of `--penrows`` pens, so the total count is
+of which has two rows of ``--penrows`` pens, so the total count is
 two times penblocks time penrows. Picture two rows with an alley between.
 Then a road for the feed truck separates one block from the next.
 The pens are assumed to have pen-to-pen
