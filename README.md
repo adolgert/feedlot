@@ -20,4 +20,5 @@ feedlots of up to 100,000 cattle, separated into separate pens.
  - As an example of more complicated types of disease spread, a pen rider
    can carry infection to neighboring pens.
 
+A [feedlot presentation](doc/incremental.pdf) gives an overview.
 If you have any questions, please do not hesitate to email me.
