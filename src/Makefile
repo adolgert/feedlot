@@ -23,7 +23,7 @@ MCRAND=$(HOME)/Documents/mcrand
 
 -include local.mk
 # -DSMVHIDELOG -pg
-OPT=-std=c++11 -DHAVE_CONFIG_H -fPIC -g -O2 
+OPT=-std=c++11 -DHAVE_CONFIG_H -fPIC -g -O2 -DSMVHIDELOG
 INCLUDES=-I$(SEMIMARKOV) -I. -I$(BOOST)/include -I$(HDF5)/include -I$(MCRAND)/include
 LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
     -lboost_unit_test_framework$(BOOSTVARIANT) \

@@ -3,6 +3,10 @@ Feedlot
 
 A continuous time discrete event simulation of a cattle feedlot, written in C++.
 
+- [Installation](src/install.md)
+
+- [Usage](src/usage.md)
+
 This prototype is a demonstration project for rapid construction of complex epidemiological simulations.
 It is a command-line program which produces timelines for spread of FMDV within
 feedlots of up to 100,000 cattle, separated into separate pens.
