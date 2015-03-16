@@ -2,7 +2,8 @@
 #include <sstream>
 #include "boost/program_options.hpp"
 #include "smv.hpp"
-#include "mt19937.hpp"
+#include "boost/random/mersenne_twister.hpp"
+//#include "mt19937.hpp"
 #include "rider_enums.hpp"
 #include "feedlot_version.hpp"
 #include "feedlot_places.hpp"
@@ -13,7 +14,8 @@
 namespace smv=afidd::smv;
 using namespace smv;
 
-using RandGen=afidd::rng::mt19937;
+//using RandGen=afidd::rng::mt19937;
+using RandGen=boost::mt19937;
 
 // This is as much of the marking as the transition will see.
 using Local=LocalMarking<Uncolored<IndividualToken>>;

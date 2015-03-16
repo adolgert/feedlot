@@ -11,12 +11,12 @@
 # the Boost random generator, then go to sir_exp.hpp and change
 # RandGen to use that one, and you can take mcrand out of this Makefile.
 
-BOOST=/usr/local/boost_1_54_0mt
+BOOST=/home/ajd27/Documents/boost_1_57_0
 # Different Boost installations have different suffixes.
 # If there is no suffix, use "BOOSTVARIANT=".
 BOOSTVARIANT=
 SEMIMARKOV=/usr/local/include/semimarkov-0.1
-HDF5=/usr/local/hdf5-1.8.11
+HDF5=/usr
 MCRAND=$(HOME)/Documents/mcrand
 #FIGTREE=$(HOME)/Documents/figtree
 #FIGTREE_LIBS=-L$(FIGTREE)/lib -lann_figtree_version -lfigtree
@@ -24,8 +24,8 @@ MCRAND=$(HOME)/Documents/mcrand
 -include local.mk
 # -DSMVHIDELOG -pg
 OPT=-std=c++11 -DHAVE_CONFIG_H -fPIC -g -O2 -DSMVHIDELOG
-INCLUDES=-I$(SEMIMARKOV) -I. -I$(BOOST)/include -I$(HDF5)/include -I$(MCRAND)/include
-LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
+INCLUDES=-I$(SEMIMARKOV) -I. -I$(BOOST)/include -I$(HDF5)/include
+LIBS=-L$(BOOST)/lib -L$(HDF5)/lib64  \
     -lboost_unit_test_framework$(BOOSTVARIANT) \
 	-lboost_log_setup$(BOOSTVARIANT) -lboost_log$(BOOSTVARIANT) \
 	-lboost_chrono$(BOOSTVARIANT) -lboost_thread$(BOOSTVARIANT) \
@@ -33,7 +33,7 @@ LIBS=-L$(BOOST)/lib -L$(HDF5)/lib -L$(MCRAND)/lib \
 	-lboost_program_options$(BOOSTVARIANT) -lboost_random$(BOOSTVARIANT) \
 	-lboost_system$(BOOSTVARIANT) -lboost_timer$(BOOSTVARIANT) \
 	-lhdf5 -lhdf5_hl -lgsl -lgslcblas \
-	-lmcrand -lpthread
+	-lpthread
 
 all: seir rider individual ensemble_sum
 .PHONY: all
